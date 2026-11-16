@@ -1,0 +1,44 @@
+# -- HAR dosyalari (tersine muhendislik kaynaklari, gizli) --
+*.har
+
+# -- Uretim ciktilari --
+outputs/
+output/
+*.mp4
+*.png
+!docs/*.png
+
+# -- Proxy dosyalari (kimlik bilgisi icerir - ASLA commit etme) --
+ips-*proxy*.txt
+*proxy*.txt
+proxy_state.json
+proxy_state.json.lock
+proxy_state.db
+proxy_state.db-wal
+proxy_state.db-shm
+*.db
+
+# -- Yerel ayarlar (kisisel yollar icerir) --
+settings.json
+settings_ltx.json
+settings_minimax_video.json
+
+# -- Python --
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# -- IDE / OS --
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# -- Gecici dosyalar --
+*.tmp
+*.log

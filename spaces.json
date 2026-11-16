@@ -1,0 +1,31 @@
+{
+  "spaces": [
+    {
+      "id": "minimax-h3-image",
+      "ad": "MiniMax H3 · Görsel",
+      "tur": "Görsel üretimi",
+      "space": "MiniMaxAI/minimax-h3-image",
+      "host": "minimaxai-minimax-h3-image.hf.space",
+      "modul": "hf_image_app",
+      "aciklama": "Fotoğraf düzenler veya metinden görsel üretir. 4/8/16 MP, 1-8 referans fotoğraf, seed ve prompt güçlendirme."
+    },
+    {
+      "id": "ltx-2-3-10eros",
+      "ad": "LTX-2.3 · Video (10Eros)",
+      "tur": "Video üretimi",
+      "space": "rdata92/LTX-2.3-10Eros",
+      "host": "rdata92-ltx-2-3-10eros.hf.space",
+      "modul": "ltx_app",
+      "aciklama": "Tek fotoğraftan video üretir (i2v). Süre, çözünürlük, preset, negatif prompt ve seed ayarları."
+    },
+    {
+      "id": "minimax-h3-video",
+      "ad": "MiniMax H3 · Video",
+      "tur": "Fotoğraftan video",
+      "space": "wank3r/minimax-h3",
+      "host": "wank3r-minimax-h3.hf.space",
+      "modul": "minimax_video_app",
+      "aciklama": "Bir fotoğraftan (opsiyonel son kare ile) video üretir. 16 canvas oranı, süre, adım, seed, upsample ve turbo seçenekleri."
+    }
+  ]
+}
