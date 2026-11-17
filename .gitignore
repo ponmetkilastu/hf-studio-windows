@@ -24,6 +24,7 @@ settings_ltx.json
 settings_minimax_video.json
 settings_krea.json
 settings_qwen.json
+settings_ph3.json
 
 # -- Python --
 __pycache__/

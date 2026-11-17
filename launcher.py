@@ -59,8 +59,8 @@ class Launcher(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Space seçin")
-        self.geometry("760x560+40+40")
-        self.minsize(680, 440)
+        self.geometry("840x600+40+40")
+        self.minsize(720, 480)
         self.configure(bg=BG)
 
         self.spaces = load_spaces()
@@ -109,7 +109,7 @@ class Launcher(tk.Tk):
         foot.grid(row=2, column=0, sticky="ew")
         foot.grid_propagate(False)
         foot.columnconfigure(0, weight=1)
-        self.hint = tk.StringVar(value="Bir space seçin · Enter ile aç")
+        self.hint = tk.StringVar(value="Bir karta tıklayın · Enter ile aç · Esc ile çık")
         tk.Label(foot, textvariable=self.hint, bg=PANEL, fg=MUTED, font=(FONT, 9)).grid(
             row=0, column=0, sticky="w", padx=18, pady=15
         )
@@ -160,55 +160,64 @@ class Launcher(tk.Tk):
             child.destroy()
         self.cards.clear()
 
+        cols = 3
+        for c in range(cols):
+            self.list_frame.columnconfigure(c, weight=1, uniform="card")
+
         for index, space in enumerate(self.spaces):
+            row, col = divmod(index, cols)
             card = tk.Frame(
                 self.list_frame,
                 bg=CARD,
                 highlightbackground=BORDER,
                 highlightthickness=1,
                 cursor="hand2",
+                width=232,
+                height=172,
             )
-            card.pack(fill="x", pady=(0, 10))
-            card.columnconfigure(0, weight=1)
+            card.grid(row=row, column=col, sticky="nsew", padx=(0, 10), pady=(0, 10))
+            card.grid_propagate(False)
 
             body = tk.Frame(card, bg=CARD, cursor="hand2")
-            body.grid(row=0, column=0, sticky="ew", padx=14, pady=11)
-            body.columnconfigure(0, weight=1)
+            body.place(x=0, y=0, relwidth=1, relheight=1)
 
-            top = tk.Frame(body, bg=CARD)
-            top.grid(row=0, column=0, sticky="ew")
-            name = tk.Label(top, text=space.get("ad", space["modul"]), bg=CARD, fg=FG, font=(FONT, 12, "bold"))
-            name.pack(side="left")
+            # ustteki ince renk seridi (kartlari birbirinden ayirir)
+            stripe = tk.Frame(body, bg=ACCENT2, height=3)
+            stripe.pack(fill="x")
+
+            name = tk.Label(
+                body,
+                text=space.get("ad", space["modul"]),
+                bg=CARD, fg=FG, font=(FONT, 11, "bold"),
+                wraplength=204, justify="left", anchor="w",
+            )
+            name.pack(fill="x", padx=12, pady=(9, 0))
+
             tur = space.get("tur")
             if tur:
-                tk.Label(top, text=f"  ·  {tur}", bg=CARD, fg=MUTED, font=(FONT, 9)).pack(
-                    side="left", pady=(3, 0)
-                )
+                tk.Label(body, text=tur, bg=CARD, fg=MUTED, font=(FONT, 8),
+                         anchor="w").pack(fill="x", padx=12, pady=(2, 0))
 
             tk.Label(
                 body,
-                text=space.get("space", "") + "   ·   " + space.get("host", ""),
-                bg=CARD,
-                fg=ACCENT2,
-                font=(MONO, 8),
-                anchor="w",
-            ).grid(row=1, column=0, sticky="w", pady=(3, 0))
+                text=space.get("space", "") + "\n" + space.get("host", ""),
+                bg=CARD, fg=ACCENT2, font=(MONO, 7),
+                justify="left", anchor="w", wraplength=204,
+            ).pack(fill="x", padx=12, pady=(5, 0))
+
             tk.Label(
                 body,
                 text=space.get("aciklama", ""),
-                bg=CARD,
-                fg=MUTED,
-                font=(FONT, 9),
-                justify="left",
-                wraplength=560,
-                anchor="w",
-            ).grid(row=2, column=0, sticky="w", pady=(4, 0))
+                bg=CARD, fg=MUTED, font=(FONT, 8),
+                justify="left", anchor="w", wraplength=204,
+            ).pack(fill="x", padx=12, pady=(5, 0))
 
-            for widget in (card, body, top, name):
-                widget.bind("<Button-1>", lambda _e, i=index: self._select(i))
-                widget.bind("<Double-Button-1>", lambda _e, i=index: self._open(i))
+            # Tek tiklama yeterli: tum kart tek bir acma hedefi.
+            widgets = [card, body, stripe, name]
+            for widget in widgets:
+                widget.bind("<Button-1>", lambda _e, i=index: self._open(i))
 
-            self.cards.append({"frame": card, "widgets": [card, body, top, name]})
+            self.cards.append({"frame": card, "widgets": widgets})
 
         self._select(self.selected if self.selected is not None else 0)
 
@@ -259,15 +268,22 @@ class Launcher(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Açılamadı", f"{module_name} yüklenemedi:\n{exc}")
             return
-        main = getattr(module, "main", None)
-        if not callable(main):
+        if not callable(getattr(module, "main", None)):
             messagebox.showerror("Açılamadı", f"{module_name} içinde main() bulunamadı.")
             return
-        self.destroy()
+
+        # Ana sayfa (launcher) KAPANMAZ ve GORUNUR KALIR.
+        # Space'i ayri bir process'te baslatiriz: boylece launcher'in mainloop'u
+        # ve space'in mainloop'u ic ice girmez (ikinci Tk root sorunu olusmaz).
+        # Env degiskeni child'a kalitilir; space icindeki "Space sec" butonu
+        # bunu gorup YENI launcher baslatmaz, sadece kendi penceresini kapatir.
+        os.environ["HF_STUDIO_LAUNCHER_ACTIVE"] = "1"
         try:
-            main()
-        except Exception as exc:
-            messagebox.showerror("Çalışma hatası", f"{module_name}:\n{exc}")
+            import subprocess
+            subprocess.Popen([sys.executable, os.path.join(APP_DIR, module_name + ".py")])
+            self.hint.set(f"{space.get('ad', module_name)} açıldı · ana sayfa açık kaldı")
+        except OSError as exc:
+            messagebox.showerror("Açılamadı", f"Space başlatılamadı:\n{exc}")
 
 
 def main() -> None:

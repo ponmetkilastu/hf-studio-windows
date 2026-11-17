@@ -44,6 +44,15 @@
       "host": "linoyts-qwen-image-2-1-realtime.hf.space",
       "modul": "qwen_app",
       "aciklama": "Metinden görsel üretir veya en fazla 10 referans görselle düzenler. /prepare + /generate zinciri, oran, çözünürlük, seed ve prompt zenginleştirme."
+    },
+    {
+      "id": "ph3-image",
+      "ad": "P-H3 · Görsel",
+      "tur": "Görsel üretimi / düzenleme",
+      "space": "PrunaAI/P-H3-Image",
+      "host": "prunaai-p-h3-image.hf.space",
+      "modul": "ph3_app",
+      "aciklama": "Metinden görsel üretir (/generate) veya kaynak + 7 referansla düzenler (/edit). Oran, çözünürlük, upsample ve seed ayarları."
     }
   ]
 }

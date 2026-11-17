@@ -859,10 +859,13 @@ class MiniMaxVideoApp(tk.Tk):
             if not messagebox.askyesno("Space seç", "Üretim sürüyor. Yine de menüye dönmek istiyor musunuz?"):
                 return
         self._save_settings()
-        try:
-            subprocess.Popen([sys.executable, os.path.join(APP_DIR, "launcher.py")])
-        except OSError:
-            pass
+        # Launcher uzerinden acildiyk sadece kapanir; launcher geri gelecek.
+        # Dogrudan acildiyk yeni launcher baslat.
+        if not os.environ.get("HF_STUDIO_LAUNCHER_ACTIVE"):
+            try:
+                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "launcher.py")])
+            except OSError:
+                pass
         try:
             self.after_cancel(self._pump_job)
         except (tk.TclError, AttributeError):
