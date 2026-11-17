@@ -14,8 +14,8 @@ HAR'dan cikarilan uretim zinciri:
       "event_data":null, "fn_index":1, "trigger_id":null, "session_hash":"..."}
      -> {"event_id":"..."}
   3. GET /gradio_api/queue/data?session_hash=... (SSE, process_completed)
-     output.data[0] = sonuc (dict icinde gorsel FileData)
-  4. GET /gradio_api/file=...  -> PNG
+     output.data[0] = {"image_data": "data:image/jpeg;base64,..."}  (gorsel GOMULU)
+     -> ek indirme istegi YOKTUR; base64 cozulur. (FileData/path yolu da desteklenir.)
 
   /generate icin fn_index 0, 6 elemanli data:
      [prompt, aspect, resolution, upsample, seed, randomize]
@@ -317,28 +317,84 @@ class PH3Client:
         """``/generate`` icin 6 elemanli ``data`` dizisi (fn_index 0)."""
         return [prompt, aspect, resolution, bool(upsample), int(seed), bool(randomize)]
 
+    @staticmethod
+    def _find_image_data(node, depth: int = 0) -> Optional[str]:
+        """Cikti agacinda ``image_data`` (data URI / base64) alanini bulur.
+
+        Bu space sonucu FileData/path yerine ``{"image_data": "data:image/jpeg;base64,..."}``
+        seklinde dondurur. Harici bir GET indirmeye gerek yoktur.
+        """
+        if depth > 10:
+            return None
+        if isinstance(node, dict):
+            # "image_data" anahtari tek basina yeterli gosterge
+            value = node.get("image_data")
+            if isinstance(value, str) and value:
+                return value
+            for key in ("image", "data"):
+                value = node.get(key)
+                if isinstance(value, str) and (
+                    value.startswith("data:image/") or len(value) > 1000
+                ):
+                    return value
+            for value in node.values():
+                found = PH3Client._find_image_data(value, depth + 1)
+                if found:
+                    return found
+        elif isinstance(node, (list, tuple)):
+            for item in node:
+                found = PH3Client._find_image_data(item, depth + 1)
+                if found:
+                    return found
+        return None
+
+    @staticmethod
+    def _decode_image_data(value: str) -> bytes:
+        """``data:image/jpeg;base64,XXX`` veya ham base64 -> bytes."""
+        import base64
+        raw = value
+        if raw.startswith("data:"):
+            # "data:image/jpeg;base64,...." -> virgulden sonrasi
+            if "," not in raw:
+                raise ClientError("Bozuk data URI (virgul yok).")
+            raw = raw.split(",", 1)[1]
+        try:
+            return base64.b64decode(raw)
+        except Exception as exc:
+            raise ClientError(f"Gorsel base64 cozulemedi: {exc}") from exc
+
     def _finish(self, completed: dict, started: float, label: str) -> ImageResult:
         output = (completed.get("output") or {}).get("data") or []
-        image = self._first_image(output[:1] if output else [])
-        if not image:
-            raise ClientError(f"Gorsel ciktisi bulunamadi: {str(output)[:400]}")
-        url = self._file_url(image)
-        self._log("status", "Sonuc indiriliyor…")
-        image_bytes = self.transport.download_result(
-            url,
-            {"accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-             "referer": BASE_URL + "/?__theme=dark", "user-agent": DEFAULT_UA},
-            label="gorsel/indir",
-        )
+        result_node = self._unwrap(output[0]) if output else None
+
+        # 1) Tercih edilen yol: image_data (data URI / base64)
+        data_uri = self._find_image_data(result_node)
+        url = ""
+        if data_uri:
+            self._log("info", "Sonuc data URI olarak alindi (indirme gerekmedi)")
+            image_bytes = self._decode_image_data(data_uri)
+        else:
+            # 2) Geri dönüş: FileData / path / url
+            image = self._first_image(output[:1] if output else [])
+            if not image:
+                raise ClientError(f"Gorsel ciktisi bulunamadi: {str(output)[:400]}")
+            url = self._file_url(image)
+            self._log("status", "Sonuc indiriliyor…")
+            image_bytes = self.transport.download_result(
+                url,
+                {"accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                 "referer": BASE_URL + "/?__theme=dark", "user-agent": DEFAULT_UA},
+                label="gorsel/indir",
+            )
+
         # cikti sozlugunden seed/proje bilgisi
         seed = None
         project = ""
-        for key in ("seed", "used_seed"):
-            v = _unwrap(output[0]) if output else None
-            if isinstance(v, dict) and isinstance(v.get(key), (int, float)):
-                seed = int(v[key]); break
-        if isinstance(_unwrap(output[0]) if output else None, dict):
-            project = str((_unwrap(output[0]) or {}).get("project") or "")
+        if isinstance(result_node, dict):
+            for key in ("seed", "used_seed"):
+                if isinstance(result_node.get(key), (int, float)):
+                    seed = int(result_node[key]); break
+            project = str(result_node.get("project") or "")
         elapsed = time.time() - started
         self._log("ok", f"Tamamlandı · {len(image_bytes) / 1024:.0f} KB · {elapsed:.1f} sn"
                         + (f" · seed {seed}" if seed is not None else ""))

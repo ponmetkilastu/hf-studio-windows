@@ -281,8 +281,9 @@ Host: `https://prunaai-p-h3-image.hf.space` · Gradio 6.30.0
 2. `POST /gradio_api/queue/join?__theme=dark` — `trigger_id: null`:
    - `fn_index: 0` (`/generate`), 6 eleman: `[prompt, aspect, resolution, upsample, seed, randomize]`
    - `fn_index: 1` (`/edit`), 13 eleman: `[source, instruction, ref2..ref8, resolution, upsample, seed, randomize]`
-3. `GET /gradio_api/queue/data?session_hash=...` → `process_completed`, `output.data[0]` sonuç (dict içinde görsel)
-4. `GET /gradio_api/file=...` → PNG
+3. `GET /gradio_api/queue/data?session_hash=...` → `process_completed`,
+   `output.data[0] = {"image_data": "data:image/jpeg;base64,..."}` — görsel **SSE içinde gömülü** gelir,
+   ayrıca bir `GET /gradio_api/file=...` isteği **yapılmaz**; base64 çözülür. (FileData/path yolu da desteklenir.)
 
 **Parametre notları:**
 

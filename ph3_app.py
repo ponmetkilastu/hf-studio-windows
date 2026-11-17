@@ -616,8 +616,7 @@ class PH3App(tk.Tk):
         self._draw_stage()
         self.save_btn.configure(state="normal")
         self.open_btn.configure(state="normal" if self.result_path else "disabled")
-        info = f"{result.size_kb:.0f} KB · {result.resolution if hasattr(result,'resolution') else ''} · "
-        info += f"seed {result.seed} · {result.elapsed:.0f} sn"
+        info = f"{result.size_kb:.0f} KB · seed {result.seed} · {result.elapsed:.0f} sn"
         self.info_var.set(info)
         self.status_var.set("Tamamlandı ✓")
         self._append_log("ok", f"Sonuç hazır: {os.path.basename(path) if path else 'bellekte'}")

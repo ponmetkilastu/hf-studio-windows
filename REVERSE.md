@@ -168,6 +168,6 @@ Yeni bir transport/proxy katmanı yazma.
 | `wank3r/minimax-h3` | upload → join(fn 0, `_fit_keyframe`) → join(fn 1, 13 parametre) → SSE → MP4 | Canvas preset listesi `/info`'dan |
 | `Intruzo/Krea-2-Turbo_v2` | upload → join(fn 4, 41 parametre) → SSE → PNG | `on_mode_change` join'i atlanır |
 | `linoyts/qwen-image-2-1-realtime` | upload × N → join(fn 10 `/prepare`, 6 param) → join(fn 11 `/generate`, 5 param) → SSE → PNG | Gallery sarmalayıcısı; `push_live` önizleme join'leri atlanır |
-| `PrunaAI/P-H3-Image` | upload → join(fn 0 `/generate`, 6 param veya fn 1 `/edit`, 13 param) → SSE → PNG | Görseller path string; workflow `component_server` istekleri atlanır; `trigger_id: null` |
+| `PrunaAI/P-H3-Image` | upload → join(fn 0 `/generate`, 6 param veya fn 1 `/edit`, 13 param) → SSE → PNG | Giriş görselleri path string; **çıktı `image_data` data-URI olarak SSE içinde gömülü** (ayrı indirme yok); workflow `component_server` istekleri atlanır; `trigger_id: null` |
 
 Bu tabloya yeni space eklendiğinde güncelle.
