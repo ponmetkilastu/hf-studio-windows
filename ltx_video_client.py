@@ -19,9 +19,8 @@ HAR'dan cikarilan akis:
 Notlar:
   * HAR'daki hicbir istekte Authorization / cookie / HF tokeni yoktur; bu istemci
     de kimlik dogrulama bilgisi gondermez (proxy kullanici/parola haric).
-  * Tarayici ``x-zerogpu-uuid`` basligini gonderiyor (ZeroGPU oturum kimligi);
-    MiniMax space'inde bu baslik olmadan da calistigi icin varsayilan olarak
-    gonderilmez. ``zerogpu_uuid`` verilirse eklenir.
+  * ZeroGPU oturum basliklari (``x-zerogpu-uuid`` / ``x-zerogpu-token``) GOnderilmez;
+    tarayicinin oturum kimligidir, API icin gerekli degildir (bkz. REVERSE.md).
   * ``snap_multiple`` ve ``msr_frame_count`` semada string literal gorunse de
     tarayici sayisal deger gonderir; ayni sekilde sayisal gonderilir.
 """
@@ -234,7 +233,6 @@ class LTXVideoClient:
         proxy_pool: Optional[ProxyPool] = None,
         proxy_file: Optional[str] = None,
         on_log: Optional[Callable[[str, str], None]] = None,
-        zerogpu_uuid: Optional[str] = None,
     ) -> None:
         self.on_log = on_log or (lambda level, msg: None)
         self.pool = proxy_pool
@@ -246,7 +244,6 @@ class LTXVideoClient:
         )
         self.transport = RotatingTransport(self.pool, on_log=self.on_log)
         self.session_hash = ""
-        self.zerogpu_uuid = zerogpu_uuid
 
     # -- yardimcilar ------------------------------------------------------ #
 
@@ -264,8 +261,7 @@ class LTXVideoClient:
         }
         if json_body:
             headers["content-type"] = "application/json"
-        if self.zerogpu_uuid:
-            headers["x-zerogpu-uuid"] = self.zerogpu_uuid
+        # ZeroGPU oturum basliklari bilincli olarak EKLENMEZ (bkz. REVERSE.md).
         return headers
 
     @staticmethod

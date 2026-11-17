@@ -26,6 +26,24 @@
       "host": "wank3r-minimax-h3.hf.space",
       "modul": "minimax_video_app",
       "aciklama": "Bir fotoğraftan (opsiyonel son kare ile) video üretir. 16 canvas oranı, süre, adım, seed, upsample ve turbo seçenekleri."
+    },
+    {
+      "id": "krea-2-turbo",
+      "ad": "Krea 2 Turbo · Görsel",
+      "tur": "Görsel üretimi / düzenleme",
+      "space": "Intruzo/Krea-2-Turbo_v2",
+      "host": "intruzo-krea-2-turbo-v2.hf.space",
+      "modul": "krea_app",
+      "aciklama": "Metinden görsel üretir veya bir görseli düzenler. Genişlik/yükseklik, megapiksel, steps, CFG, sampler, seed, checkpoint ve LoRA ayarları."
+    },
+    {
+      "id": "qwen-image-2-1",
+      "ad": "Qwen Image 2.1 · Görsel",
+      "tur": "Görsel üretimi / düzenleme",
+      "space": "linoyts/qwen-image-2-1-realtime",
+      "host": "linoyts-qwen-image-2-1-realtime.hf.space",
+      "modul": "qwen_app",
+      "aciklama": "Metinden görsel üretir veya en fazla 10 referans görselle düzenler. /prepare + /generate zinciri, oran, çözünürlük, seed ve prompt zenginleştirme."
     }
   ]
 }

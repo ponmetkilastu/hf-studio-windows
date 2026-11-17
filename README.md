@@ -1,6 +1,6 @@
-# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video)
+# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1)
 
-Üç Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
+Beş Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
 çıkarıldı ve tek bir Windows tkinter uygulamasında toplandı. Açılışta space listesi gelir,
 hangisiyle çalışacağını sen seçersin. Her üretim proxy listesindeki tek bir IP üzerinden gider,
 yeni üretimde sıradaki IP'ye geçer.
@@ -17,6 +17,8 @@ python launcher.py            :: space listesi
 python hf_image_app.py        :: doğrudan MiniMax görsel arayüzü
 python ltx_app.py             :: doğrudan LTX video arayüzü
 python minimax_video_app.py   :: doğrudan MiniMax H3 fotoğraftan video arayüzü
+python krea_app.py            :: doğrudan Krea 2 Turbo görsel arayüzü
+python qwen_app.py            :: doğrudan Qwen Image 2.1 görsel arayüzü
 ```
 
 Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
@@ -28,6 +30,8 @@ Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
 | `MiniMaxAI/minimax-h3-image` | Görsel | Fotoğraf düzenleme / metinden görsel. 4-16 MP, 1-8 referans fotoğraf |
 | `rdata92/LTX-2.3-10Eros` | Video | Tek fotoğraftan video (i2v). 1-10 sn, 768p-1344p, preset + negatif prompt |
 | `wank3r/minimax-h3` | Video | Fotoğraftan video (i2v). 16 canvas oranı, 1-10 sn, adım, seed, upsample/turbo, opsiyonel son kare |
+| `Intruzo/Krea-2-Turbo_v2` | Görsel | Metinden görsel veya görsel düzenleme (edit). 41 parametre, checkpoint, LoRA |
+| `linoyts/qwen-image-2-1-realtime` | Görsel | Metinden görsel veya en fazla 10 referansla düzenleme. /prepare + /generate, oran, çözünürlük |
 
 Liste `spaces.json` dosyasından okunur. Yeni bir space eklemek için istemci + arayüz modülünü
 yazıp buraya bir kayıt eklemek yeterli (`modul` alanı `main()` içeren Python dosyası).
@@ -61,6 +65,26 @@ Uygulamalardaki **⌂ Space seç** düğmesi menüye geri döner.
 
 Space, fotoğrafın oranına göre farklı bir canvas önerirse günlükte bunu bildirir; arayüzde
 seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
+
+## Kullanım — Görsel (Krea 2 Turbo)
+
+1. **Mod** seç: `text2image` metinden üretir, `edit` bir görseli düzenler.
+2. `edit` için **Seç** ile bir görsel yükle; istersen **2. referans** ekle.
+3. Prompt yaz; `edit` modunda **Düzenleme talimatı** alanını da doldur.
+4. Boyut (genişlik/yükseklik 512-2048), megapiksel (0.25-4), grounding (384-1536),
+   referans gücü, adım (4-40), CFG (1-5), sampler, scheduler, seed ve checkpoint ayarla.
+5. **▶ GÖRSEL ÜRET** (veya Ctrl+Enter). Sonuç sağda görünür, `outputs\krea_<tarih>.png` olarak kaydedilir.
+
+> Bu space'in varsayılan checkpoint'i ve katalog LoRA'ları yetişkin içerikli modeller içerir.
+> İstemci yalnızca API isteklerini yeniden üretir; içerik üretimi kullanıcının prompt'una bağlıdır.
+
+## Kullanım — Görsel (Qwen Image 2.1)
+
+1. İstersen **Ekle** ile en fazla 10 referans görsel yükle (boş bırakırsan metinden üretir).
+2. Prompt yaz; **Oran** (Auto, 1:1, 4:3 … 9:16) ve **Çözünürlük** (512/1024/1536) seç.
+3. Seed alanına sayı yaz veya **rastgele seed** kutusunu işaretle. İstersen **prompt'u zenginleştir** (yavaş).
+4. **▶ GÖRSEL ÜRET** (veya Ctrl+Enter). Önce `/prepare` seed'i belirler, sonra `/generate` görseli üretir.
+5. Sonuç `outputs\qwen_<tarih>.png` olarak kaydedilir.
 
 ## Seed (tüm space'ler)
 
@@ -112,6 +136,10 @@ DB içeriğini görmek için: `python db_bilgi.py` · testler: `python test_prox
 | `ltx_video_client.py` | LTX-2.3 API istemcisi (upload + 88 parametreli /generate) |
 | `minimax_video_app.py` | MiniMax H3 fotoğraftan video arayüzü |
 | `minimax_video_client.py` | MiniMax H3 API istemcisi (upload + /_fit_keyframe + 13 parametreli /generate) |
+| `krea_app.py` | Krea 2 Turbo görsel arayüzü |
+| `krea_client.py` | Krea 2 Turbo API istemcisi (upload + 41 parametreli /_generate_wrapper) |
+| `qwen_app.py` | Qwen Image 2.1 görsel arayüzü |
+| `qwen_client.py` | Qwen Image 2.1 API istemcisi (upload + /prepare + /generate) |
 | `proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`) |
 | `db_bilgi.py` | `proxy_state.db` içeriğini gösterir |
 | `test_proxy_db.py` | Proxy havuzu testleri (FIFO, çoklu-sekme, migration) |
@@ -149,8 +177,8 @@ max_width, max_height, mode, face_bbox, likeness_strength, ..., seed, randomize_
 (bkz. `ltx_video_client.PARAMS`). Tarayıcı `snap_multiple`/`msr_frame_count` için sayısal
 değer gönderiyor; istemci de öyle gönderir.
 
-Oyuncu tarafında `x-zerogpu-uuid`, cookie, `Authorization` veya HF tokeni gönderilmez
-(HAR'da da yoktu; `x-zerogpu-uuid` yalnızca opsiyonel olarak desteklenir).
+Oyuncu tarafında `x-zerogpu-uuid` / `x-zerogpu-token`, cookie, `Authorization` veya HF
+tokeni gönderilmez. ZeroGPU oturum başlıkları bilinçli olarak eklenmez (bkz. `REVERSE.md`).
 
 ## Teknik özet — MiniMax H3 Video (`huggingface.co.minimax.img2vid.har`)
 
@@ -173,5 +201,63 @@ Host: `https://wank3r-minimax-h3.hf.space`
 
 Canvas seçenekleri `/gradio_api/info` şemasından alınmıştır (16 adet; `fast` = hızlı,
 `full` = tam çözünürlük). `duration` saniye, `steps` örnekleme adımı, `seed: -1` sunucunun
-rastgele seçmesi anlamına gelir. `x-zerogpu-uuid` yalnızca join isteklerinde gönderilir ve
-istemcide opsiyoneldir; cookie / `Authorization` / HF tokeni hiç kullanılmaz.
+rastgele seçmesi anlamına gelir. ZeroGPU oturum başlıkları ve cookie / `Authorization` /
+HF tokeni kullanılmaz (bkz. `REVERSE.md`).
+
+## Teknik özet — Krea 2 Turbo (`huggingface.co.krea.imgedit.har`)
+
+Host: `https://intruzo-krea-2-turbo-v2.hf.space` · Gradio 5.44.1 (SvelteKit arayüzü)
+
+1. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files`
+   → `["/tmp/gradio/<hash>/<ad>.jpg"]`
+2. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 4` (`/_generate_wrapper`),
+   `trigger_id: 79`, `session_hash`, **41 elemanlı** `data` dizisi → `{"event_id": "..."}`
+3. `GET /gradio_api/queue/data?session_hash=...` → `process_completed`
+   (`output.data[0]` = gallery/görsel, `data[1]` = durum, `data[2]` = kullanılan seed)
+4. `GET /gradio_api/file=/tmp/gradio/<hash>/output_0.png` → PNG
+
+**Parametrelerin gönderilme biçimi (bu space'in ayırt edici yanı):**
+
+- 41 parametrenin **hiçbiri atlanmaz**; tarayıcı varsayılan değerleri de açıkça gönderir
+  (`1024`, `1.4`, `768`, `0.0` …). İstemci de tüm slotları doldurur.
+- Sıra `/gradio_api/info` → `/_generate_wrapper` ve `/config` dosyasındaki `inputs`
+  listesinden doğrulandı: `mode, prompt, edit instruction, primary image, second reference,
+  width, height, target megapixels, grounding resolution, ref strength 1/2, steps, CFG,
+  sampler, scheduler, seed, randomize seed, GPU budget, base checkpoint, custom repo/filename/
+  revision, LoRA dataframe` + **18 katalog LoRA slider'ı** (hepsi `0.0`).
+- Görsel slot'u yükleme yanıtından üretilen bir **FileData** sözlüğüdür:
+  `path` + `url` (`BASE_URL + "/gradio_api/file=" + path`) + `orig_name` + `size` +
+  `mime_type` + `meta`. Tarayıcı URL'deki boşluğu kodlamadan gönderir; `requests` kodlar.
+- `trigger_id: 79` ve `fn_index: 4`, space'in `/config` dosyasındaki generate düğmesi
+  click event'inden gelir; `session_hash` 10 karakterli rastgele değerdir.
+- Tarayıcı ilk olarak `fn_index: 0` (`data: ["edit"]`, `/on_mode_change`) isteği gönderir;
+  bu yalnızca arayüz görünürlüğünü değiştirir, üretimi etkilemez ve istemcide atlanır.
+- HAR'ın 2 join isteğinde `x-zerogpu-uuid` / `x-zerogpu-token` görünür; bunlar tarayıcının
+  ZeroGPU oturum kimliğidir ve istemcide **bilinçli olarak gönderilmez** (bkz. `REVERSE.md`).
+- HAR'da cookie / `Authorization` / HF tokeni yoktur; istemci de göndermez.
+
+## Teknik özet — Qwen Image 2.1 (`huggingface.co.qwen21.imgedit.har`)
+
+Host: `https://linoyts-qwen-image-2-1-realtime.hf.space` · Gradio 6.30.0 (SvelteKit)
+
+1. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files` (her görsel ayrı)
+   → `["/tmp/gradio/<hash>/<dosya>"]`
+2. `POST /gradio_api/queue/join` — `fn_index: 10` (`/prepare`), `trigger_id: 12`,
+   6 elemanlı `data`: `[prompt, gallery, enhance, seed, randomize_seed, aspect_ratio]`
+   → SSE `output.data = [prompt, rewritten, seed, aspect_ratio]`
+3. `POST /gradio_api/queue/join` — `fn_index: 11` (`/generate`), `trigger_id: 12`,
+   5 elemanlı `data`: `[prompt, gallery, seed, resolution, aspect_ratio]`
+   → SSE `output.data[0]` = sonuç görseli
+4. `GET /gradio_api/file=/tmp/gradio/<hash>/image.png` → PNG
+
+**Parametre notları:**
+
+- `gallery` düz FileData değil, Gradio Gallery öğeleridir:
+  `[{"image": {path, url, orig_name, size, mime_type, meta}, "caption": null}, …]` (en fazla 10).
+- `/prepare` çıktısındaki **seed ve oran** `/generate` çağrısında kullanılır; `randomize_seed:
+  true` ise sunucu seed üretir ve döndürür. Prompt (enhance açıksa yeniden yazılmış hali) de
+  generate'e gider.
+- HAR'da prompt harf harf yazıldığı için `fn_index: 5` (`/push_live`) 20+ kez çağrılmış;
+  bunlar yalnızca 512px "realtime" önizleme içindir (`outputs: []`), üretimi etkilemez ve
+  istemcide atlanır.
+- HAR'ın join isteklerinde `x-zerogpu-*` görünür; **gönderilmez** (bkz. `REVERSE.md`).

@@ -22,6 +22,8 @@ proxy_state.db-shm
 settings.json
 settings_ltx.json
 settings_minimax_video.json
+settings_krea.json
+settings_qwen.json
 
 # -- Python --
 __pycache__/
