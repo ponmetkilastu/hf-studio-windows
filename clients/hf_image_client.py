@@ -28,7 +28,15 @@ Notlar:
     ``session_hash`` anahtarli state'te tutulur.
 """
 
+
 from __future__ import annotations
+
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
+
 
 import base64
 import glob
@@ -48,7 +56,7 @@ from urllib.parse import quote
 
 import requests
 
-from proxy_db import ProxyDB
+from core.proxy_db import ProxyDB
 
 BASE_URL = "https://minimaxai-minimax-h3-image.hf.space"
 QUEUE_JOIN = BASE_URL + "/gradio_api/queue/join?__theme=system"
@@ -198,10 +206,11 @@ class ProxyPool:
         exact = os.path.join(directory, "ips-datacenter_proxy12026-11-16T01_15_06.647Z.txt")
         if os.path.exists(exact):
             return exact
-        for pattern in (FALLBACK_PROXY_GLOB, "*proxy*.txt"):
-            hits = sorted(glob.glob(os.path.join(directory, pattern)), key=os.path.getmtime, reverse=True)
-            if hits:
-                return hits[0]
+        for base in (directory, os.path.join(directory, "data")):
+            for pattern in (FALLBACK_PROXY_GLOB, "*proxy*.txt"):
+                hits = sorted(glob.glob(os.path.join(base, pattern)), key=os.path.getmtime, reverse=True)
+                if hits:
+                    return hits[0]
         return None
 
     # -- durum (SQLite) ---------------------------------------------------- #

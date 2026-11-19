@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Yerel HF API · Test Paneli</title>
+<style>
+  :root{--bg:#0f1115;--panel:#151820;--card:#1b1f28;--card2:#242a36;--border:#2b3140;
+    --fg:#e9ecf1;--muted:#8b93a1;--accent:#7c5cff;--accent2:#31c8ff;--ok:#38d39f;
+    --err:#ff5d6c;--mono:Consolas,"Courier New",monospace;--font:"Segoe UI",Arial,sans-serif}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px var(--font)}
+  header{background:var(--panel);border-bottom:3px solid transparent;
+    border-image:linear-gradient(90deg,var(--accent),var(--accent2)) 1;padding:16px 22px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header b{font-size:20px}header b span{color:var(--accent)}header small{color:var(--muted)}
+  header .spacer{flex:1}
+  input,select,textarea,button{font:inherit}
+  input,select,textarea{background:#0a0c10;color:var(--fg);border:1px solid var(--border);
+    border-radius:5px;padding:7px 9px;outline:none}
+  input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+  button{background:var(--accent);color:#fff;border:0;border-radius:5px;padding:8px 14px;
+    cursor:pointer;font-weight:600}button:hover{filter:brightness(1.12)}
+  button.ghost{background:var(--card2);color:var(--fg)}button:disabled{opacity:.5;cursor:not-allowed}
+  main{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:14px;padding:14px;max-width:1400px;margin:auto}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px}
+  .card h3{margin:0 0 10px;font-size:13px;color:var(--accent2)}
+  label{display:block;color:var(--muted);font-size:11px;margin:8px 0 3px}
+  .row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+  textarea{width:100%;min-height:90px;resize:vertical;font:12px var(--mono)}
+  pre{background:#0a0c10;border:1px solid var(--border);border-radius:5px;padding:10px;
+    font:12px var(--mono);white-space:pre-wrap;word-break:break-all;max-height:220px;
+    overflow:auto;margin:0}
+  #result,#resultVideo{width:100%;border-radius:6px;border:1px solid var(--border);
+    display:none;margin-top:10px}
+  .hint{color:var(--muted);font-size:11px;line-height:1.5}
+  .files div{background:var(--card2);border-radius:4px;padding:4px 8px;font:11px var(--mono);
+    color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
+  .files span{cursor:pointer;color:var(--err)}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <b>Yerel HF <span>API</span></b><small>test paneli · tek endpoint, dosya döner</small>
+  <div class="spacer"></div>
+  <label style="margin:0;display:flex;align-items:center;gap:6px">API:
+    <input id="api" style="width:280px" value="http://127.0.0.1:8787"></label>
+  <button class="ghost" onclick="health()">Sağlık</button>
+</header>
+<main>
+<div class="card">
+  <label>Endpoint</label>
+  <select id="ep">
+    <option value="/ph3/text2image">ph3 · metinden görsel</option>
+    <option value="/ph3/img2img">ph3 · görsel düzenle</option>
+    <option value="/krea/text2image">krea · metinden görsel</option>
+    <option value="/krea/img2img">krea · görsel düzenle</option>
+    <option value="/qwen/text2image">qwen · metinden görsel</option>
+    <option value="/qwen/img2img">qwen · görsel(ler)le</option>
+    <option value="/minimax-video/i2v">minimax-video · fotoğraftan video</option>
+    <option value="/ltx/i2v">ltx · fotoğraftan video</option>
+    <option value="/minimax-image/text2image">minimax-image · metinden görsel</option>
+    <option value="/zimage/text2image">zimage · metinden görsel</option>
+    <option value="/ltx09/i2v">ltx09 · fotoğraftan video</option>
+    <option value="/kokoro/tts">kokoro · metinden ses</option>
+  </select>
+
+  <label>Görsel(ler) — img2img / i2v için</label>
+  <input id="files" type="file" accept="image/*" multiple>
+  <div class="files" id="fileList"></div>
+
+  <label>Prompt / talimat</label>
+  <textarea id="prompt" placeholder="örn. a cinematic portrait">a cinematic portrait</textarea>
+
+  <div class="row">
+    <div><label>Aspect</label><input id="aspect" value="4:3"></div>
+    <div><label id="resolutionLabel">Çözünürlük</label><input id="resolution" value="8 MP"></div>
+  </div>
+  <div class="row">
+    <div><label>Seed</label><input id="seed" type="number" value="42"></div>
+    <div><label>Süre (video)</label><input id="duration" type="number" value="5"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button id="runBtn" onclick="run()" style="flex:1">▶ ÇALIŞTIR</button>
+    <button class="ghost" onclick="document.getElementById('status').textContent=''">Temizle</button>
+  </div>
+  <p id="status" style="color:var(--accent2);font:12px var(--mono);margin-top:10px"></p>
+  <p class="hint">Önce <code>api_baslat.bat</code> ile sunucuyu başlat. Sonra endpoint seç, gerekirse görsel ekle, ÇALIŞTIR.</p>
+</div>
+
+<div class="card">
+  <h3>SONUÇ</h3>
+  <pre id="out">—</pre>
+  <img id="result" alt="sonuç görsel">
+  <video id="resultVideo" controls></video>
+  <div style="margin-top:10px">
+    <button class="ghost" id="saveBtn" style="display:none" onclick="save()">💾 İndir</button>
+    <span class="hint" id="meta"></span>
+  </div>
+</div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const API=()=>$('api').value.replace(/\/$/,'');
+let picked=[], lastBlob=null, lastName='result.png';
+
+// qwen resolution alanini INTEGER bekler (512/1024/1536); ph3/minimax-image "8 MP" metni bekler.
+function syncFields(){
+  const ep=$('ep').value, isQwen=ep.startsWith('/qwen/');
+  $('resolutionLabel').textContent=isQwen?'Çözünürlük (px: 512/1024/1536)':'Çözünürlük';
+  const v=$('resolution').value.trim();
+  if(isQwen && !/^\d+$/.test(v)) $('resolution').value='1024';
+  else if(!isQwen && /^\d+$/.test(v)) $('resolution').value='8 MP';
+}
+$('ep').addEventListener('change',syncFields);
+syncFields();
+
+$('files').addEventListener('change',e=>{
+  picked=Array.from(e.target.files);
+  render();
+});
+function render(){
+  $('fileList').innerHTML=picked.map((f,i)=>`<div>${i===0?'★ ':''}${f.name}<span data-i="${i}">✕</span></div>`).join('');
+  $('fileList').querySelectorAll('span').forEach(s=>s.onclick=()=>{
+    picked.splice(+s.dataset.i,1); $('files').value=''; render();
+  });
+}
+
+function show(blob,name){
+  lastBlob=blob; lastName=name;
+  const url=URL.createObjectURL(blob);
+  const video=name.endsWith('.mp4')||blob.type.startsWith('video');
+  $('result').style.display=video?'none':'block'; $('result').src=video?'':url;
+  $('resultVideo').style.display=video?'block':'none'; $('resultVideo').src=video?url:'';
+  $('saveBtn').style.display='inline-block';
+  $('meta').textContent=`${name} · ${(blob.size/1024).toFixed(0)} KB`;
+  $('out').textContent=JSON.stringify({ok:true,file:name,size:blob.size},null,2);
+}
+function save(){
+  const a=document.createElement('a');a.href=URL.createObjectURL(lastBlob);a.download=lastName;a.click();
+}
+async function health(){
+  try{const j=await (await fetch(API()+'/')).json(); alert('API sağlıklı: '+j.name+' · '+j.endpoints.length+' endpoint');}
+  catch(e){alert('API erişilemedi: '+e.message+'\n\napi_baslat.bat ile başlatın.');}
+}
+
+async function run(){
+  const ep=$('ep').value, isVideo=ep.includes('/i2v');
+  $('runBtn').disabled=true; $('result').style.display='none';
+  $('resultVideo').style.display='none'; $('saveBtn').style.display='none';
+  $('out').textContent='—'; $('status').textContent='Üretiliyor… (15 sn – 5 dk sürebilir)';
+  try{
+    const fd=new FormData();
+    picked.forEach((f,i)=>fd.append(i===0?'image':`ref${i}`,f));
+    if(ep==='/kokoro/tts') fd.append('text',$('prompt').value.trim());
+    else fd.append('prompt',$('prompt').value.trim());
+    if(ep.startsWith('/ph3/img2img')) fd.append('instruction',$('prompt').value.trim());
+    fd.append('aspect',$('aspect').value);
+    // qwen int resolution ister, digerleri metin ("8 MP" vb.).
+    const res=$('resolution').value.trim();
+    if(ep.startsWith('/qwen/')){
+      const n=parseInt(res,10);
+      if(!Number.isFinite(n)) throw new Error('qwen için resolution sayı olmalı (512 / 1024 / 1536)');
+      fd.append('resolution',String(n));
+    }else{
+      fd.append('resolution',res);
+    }
+    fd.append('seed',$('seed').value);
+    if(isVideo) fd.append('duration',$('duration').value);
+    const t=Date.now();
+    const r=await fetch(API()+ep,{method:'POST',body:fd});
+    if(!r.ok){
+      const txt=await r.text();
+      let msg=txt; try{msg=JSON.parse(txt).error||txt}catch{}
+      throw new Error(`${r.status}: ${msg}`);
+    }
+    const blob=await r.blob();
+    const ext=isVideo?'mp4':(blob.type.includes('png')?'png':'jpg');
+    show(blob,`result.${ext}`);
+    $('status').textContent=`Tamamlandı ✓ ${((Date.now()-t)/1000).toFixed(1)} sn`;
+  }catch(e){ $('status').textContent='Hata: '+e.message; $('out').textContent=e.message; }
+  finally{ $('runBtn').disabled=false; }
+}
+</script>
+</body>
+</html>

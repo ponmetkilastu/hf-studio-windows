@@ -10,7 +10,15 @@ Fotograf yukleyip duzenleyebilir veya bos birakip metinden gorsel uretebilirsini
 Her uretim tek bir proxy IP'si uzerinden gonderilir; yeni uretimde listeden farkli bir IP alinir.
 """
 
+
 from __future__ import annotations
+
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
+
 
 import io
 import json
@@ -28,10 +36,10 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageTk
 
-import hf_image_client as api
+import clients.hf_image_client as api
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
+APP_DIR = ROOT_DIR
+SETTINGS_PATH = os.path.join(SETTINGS_DIR, "settings.json")
 OUTPUT_DIR = os.path.join(APP_DIR, "outputs")
 
 # -- renkler --------------------------------------------------------------- #
@@ -1064,7 +1072,7 @@ class App(tk.Tk):
         # Dogrudan acildiyk yeni launcher baslat.
         if not os.environ.get("HF_STUDIO_LAUNCHER_ACTIVE"):
             try:
-                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "launcher.py")])
+                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "apps", "launcher.py")])
             except OSError:
                 pass
         self.destroy()

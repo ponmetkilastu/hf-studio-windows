@@ -6,7 +6,7 @@
       "tur": "Görsel üretimi",
       "space": "MiniMaxAI/minimax-h3-image",
       "host": "minimaxai-minimax-h3-image.hf.space",
-      "modul": "hf_image_app",
+      "modul": "apps.hf_image_app",
       "aciklama": "Fotoğraf düzenler veya metinden görsel üretir. 4/8/16 MP, 1-8 referans fotoğraf, seed ve prompt güçlendirme."
     },
     {
@@ -15,7 +15,7 @@
       "tur": "Video üretimi",
       "space": "rdata92/LTX-2.3-10Eros",
       "host": "rdata92-ltx-2-3-10eros.hf.space",
-      "modul": "ltx_app",
+      "modul": "apps.ltx_app",
       "aciklama": "Tek fotoğraftan video üretir (i2v). Süre, çözünürlük, preset, negatif prompt ve seed ayarları."
     },
     {
@@ -24,7 +24,7 @@
       "tur": "Fotoğraftan video",
       "space": "wank3r/minimax-h3",
       "host": "wank3r-minimax-h3.hf.space",
-      "modul": "minimax_video_app",
+      "modul": "apps.minimax_video_app",
       "aciklama": "Bir fotoğraftan (opsiyonel son kare ile) video üretir. 16 canvas oranı, süre, adım, seed, upsample ve turbo seçenekleri."
     },
     {
@@ -33,7 +33,7 @@
       "tur": "Görsel üretimi / düzenleme",
       "space": "Intruzo/Krea-2-Turbo_v2",
       "host": "intruzo-krea-2-turbo-v2.hf.space",
-      "modul": "krea_app",
+      "modul": "apps.krea_app",
       "aciklama": "Metinden görsel üretir veya bir görseli düzenler. Genişlik/yükseklik, megapiksel, steps, CFG, sampler, seed, checkpoint ve LoRA ayarları."
     },
     {
@@ -42,7 +42,7 @@
       "tur": "Görsel üretimi / düzenleme",
       "space": "linoyts/qwen-image-2-1-realtime",
       "host": "linoyts-qwen-image-2-1-realtime.hf.space",
-      "modul": "qwen_app",
+      "modul": "apps.qwen_app",
       "aciklama": "Metinden görsel üretir veya en fazla 10 referans görselle düzenler. /prepare + /generate zinciri, oran, çözünürlük, seed ve prompt zenginleştirme."
     },
     {
@@ -51,8 +51,35 @@
       "tur": "Görsel üretimi / düzenleme",
       "space": "PrunaAI/P-H3-Image",
       "host": "prunaai-p-h3-image.hf.space",
-      "modul": "ph3_app",
+      "modul": "apps.ph3_app",
       "aciklama": "Metinden görsel üretir (/generate) veya kaynak + 7 referansla düzenler (/edit). Oran, çözünürlük, upsample ve seed ayarları."
+    },
+    {
+      "id": "z-image-turbo",
+      "ad": "Z-Image Turbo · Görsel",
+      "tur": "Görsel üretimi",
+      "space": "mrfakename/Z-Image-Turbo",
+      "host": "mrfakename-z-image-turbo.hf.space",
+      "modul": "apps.zimage_app",
+      "aciklama": "Metinden hızlı görsel üretir (/generate_image). Genişlik/yükseklik (512-2048), adım (1-20), seed ve rastgele seed ayarları."
+    },
+    {
+      "id": "ltx-video-distilled",
+      "ad": "LTX-Video Distilled · Fotoğraftan video",
+      "tur": "Fotoğraftan video",
+      "space": "Lightricks/ltx-video-distilled",
+      "host": "lightricks-ltx-video-distilled.hf.space",
+      "modul": "apps.ltx09_app",
+      "aciklama": "Tek fotoğraftan video üretir. Görsele göre otomatik boyut, süre, frame, seed, guidance ve improve texture ayarları."
+    },
+    {
+      "id": "kokoro-tts",
+      "ad": "Kokoro TTS · Metinden ses",
+      "tur": "Metinden ses",
+      "space": "hexgrad/Kokoro-TTS",
+      "host": "hexgrad-kokoro-tts.hf.space",
+      "modul": "apps.kokoro_app",
+      "aciklama": "Metinden doğal ses üretir. 28 ses, hız (0.5-2.0) ve ZeroGPU/CPU seçimi."
     }
   ]
 }

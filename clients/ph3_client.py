@@ -39,7 +39,15 @@ Parametrelerin gonderilme bicimi (onemli):
 Not: Authorization / cookie / HF tokeni yoktur ve gonderilmez.
 """
 
+
 from __future__ import annotations
+
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
+
 
 import json
 import os
@@ -51,7 +59,7 @@ from typing import Callable, Optional
 
 import requests
 
-from hf_image_client import ClientError, DEFAULT_UA, ProxyPool, RotatingTransport
+from clients.hf_image_client import ClientError, DEFAULT_UA, ProxyPool, RotatingTransport
 
 BASE_URL = "https://prunaai-p-h3-image.hf.space"
 SPACE_ID = "PrunaAI/P-H3-Image"

@@ -1,6 +1,6 @@
-# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3)
+# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS)
 
-Altı Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
+Dokuz Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
 çıkarıldı ve tek bir Windows tkinter uygulamasında toplandı. Açılışta space listesi gelir,
 hangisiyle çalışacağını sen seçersin. Her üretim proxy listesindeki tek bir IP üzerinden gider,
 yeni üretimde sıradaki IP'ye geçer.
@@ -13,13 +13,17 @@ Komut satırında:
 
 ```bat
 cd C:\Users\ozan\Desktop\hugginface
-python launcher.py            :: space listesi
-python hf_image_app.py        :: doğrudan MiniMax görsel arayüzü
-python ltx_app.py             :: doğrudan LTX video arayüzü
-python minimax_video_app.py   :: doğrudan MiniMax H3 fotoğraftan video arayüzü
-python krea_app.py            :: doğrudan Krea 2 Turbo görsel arayüzü
-python qwen_app.py            :: doğrudan Qwen Image 2.1 görsel arayüzü
-python ph3_app.py             :: doğrudan P-H3 görsel arayüzü
+python launcher.py                    :: space listesi (kısayol)
+python apps/hf_image_app.py           :: doğrudan MiniMax görsel arayüzü
+python apps/ltx_app.py                :: doğrudan LTX video arayüzü
+python apps/minimax_video_app.py      :: doğrudan MiniMax H3 fotoğraftan video
+python apps/krea_app.py               :: doğrudan Krea 2 Turbo görsel arayüzü
+python apps/qwen_app.py               :: doğrudan Qwen Image 2.1 görsel arayüzü
+python apps/ph3_app.py                :: doğrudan P-H3 görsel arayüzü
+python apps/zimage_app.py             :: doğrudan Z-Image Turbo görsel arayüzü
+python apps/ltx09_app.py              :: doğrudan LTX-Video Distilled arayüzü
+python apps/kokoro_app.py             :: doğrudan Kokoro TTS arayüzü
+python core/local_api.py              :: yerel API sunucusu (bkz. docs/AGENTS.md)
 ```
 
 Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
@@ -34,6 +38,9 @@ Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
 | `Intruzo/Krea-2-Turbo_v2` | Görsel | Metinden görsel veya görsel düzenleme (edit). 41 parametre, checkpoint, LoRA |
 | `linoyts/qwen-image-2-1-realtime` | Görsel | Metinden görsel veya en fazla 10 referansla düzenleme. /prepare + /generate, oran, çözünürlük |
 | `PrunaAI/P-H3-Image` | Görsel | Metinden görsel (/generate) veya kaynak + 7 referansla düzenleme (/edit). Oran, çözünürlük |
+| `mrfakename/Z-Image-Turbo` | Görsel | Metinden hızlı görsel. Genişlik/yükseklik, adım, seed. |
+| `Lightricks/ltx-video-distilled` | Video | Fotoğraftan video (i2v). Otomatik boyut, süre, frame, guidance. |
+| `hexgrad/Kokoro-TTS` | Ses | Metinden ses. 28 ses, hız ve ZeroGPU/CPU seçimi. |
 
 Liste `spaces.json` dosyasından okunur. Yeni bir space eklemek için istemci + arayüz modülünü
 yazıp buraya bir kayıt eklemek yeterli (`modul` alanı `main()` içeren Python dosyası).
@@ -95,6 +102,33 @@ seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
 3. Prompt / düzenleme talimatı yaz; oran (4:3, 1:1 …), çözünürlük (8 MP vb.), seed ve upsample ayarla.
 4. **▶ GÖRSEL ÜRET**. Sonuç `outputs\ph3_<tarih>.png` olarak kaydedilir.
 
+## Kullanım — Görsel (Z-Image Turbo)
+
+1. Prompt yaz (örn. `a cinematic portrait in soft natural light`).
+2. Genişlik / yükseklik (512–2048, 64'ün katları), adım (1–20) ve seed ayarla.
+3. **Rastgele seed** açıksa sunucu seed seçer; kapatırsan yazdığın seed kullanılır.
+4. **▶ GÖRSEL ÜRET** (veya Ctrl+Enter). Sonuç `outputs\zimage_<tarih>.png` olarak kaydedilir.
+
+> Bu space'te yükleme (upload) isteği yoktur; yalnızca tek `/generate_image` çağrısı vardır.
+
+## Kullanım — Fotoğraftan video (LTX-Video Distilled)
+
+1. **Seç** ile kaynak fotoğrafı yükle.
+2. Prompt (hareket tarifi) ve negatif prompt'u düzenle.
+3. Genişlik/yükseklik (256–1280), süre (0.3–8.5 sn), frame (9–257), seed,
+   guidance (1–10) ve **improve texture** ayarlarını yap.
+4. **▶ VİDEO ÜRET**. Önce görsel oranına göre gerçek boyutlar hesaplanır, sonra video üretilir (1–5 dk).
+5. Sonuç `outputs\ltx09_<tarih>.mp4` olarak kaydedilir; **Oynat** varsayılan oynatıcıda açar.
+
+> HAR'da görülen upload_progress SSE'si yalnızca yükleme ilerlemesidir, istemcide atlanır.
+
+## Kullanım — Metinden ses (Kokoro TTS)
+
+1. Metin yaz (~500 karakter sınırı; Generate modu).
+2. **Ses** listesinden bir ses seç (28 seçenek, varsayılan `af_heart`).
+3. **Hız** (0.5–2.0) ve **ZeroGPU / CPU** seçimini yap.
+4. **▶ SES ÜRET**. Sonuç `outputs\kokoro_<tarih>.wav` olarak kaydedilir; **Oynat** varsayılan oynatıcıda açar.
+
 ## Seed (tüm space'ler)
 
 - Seed alanına **elle sayı yazabilirsiniz**; yazdığınız anda **Rastgele seed** kutusu
@@ -131,34 +165,40 @@ seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
   (çıkış IP'si değişince istek başka kopyaya gider).
 - Görsel ve video indirmelerinde bu davranış aynıdır (`RotatingTransport.download_result`).
 
-DB içeriğini görmek için: `python db_bilgi.py` · testler: `python test_proxy_db.py`
+DB içeriğini görmek için: `python scripts/db_bilgi.py` · testler: `python scripts/test_proxy_db.py`
 
-## Dosyalar
+## Proje yapısı
 
-| Dosya | Görev |
+```
+hugginface/
+├─ apps/          tkinter arayüzleri (launcher + 9 space)
+├─ clients/       HF API istemcileri (ortak transport/proxy katmanı hf_image_client'da)
+├─ core/          altyapı: proxy_db.py, local_api.py (yerel HTTP API)
+├─ config/        spaces.json + settings*.json (otomatik, git'e girmez)
+├─ data/          *.har kaynakları, proxy listesi, proxy_state.* (git'e girmez)
+├─ docs/          README.md, REVERSE.md, AGENTS.md, test.html (API test paneli)
+├─ scripts/       db_bilgi.py, test_proxy_db.py, test_proxy.py
+├─ outputs/       üretilen PNG / MP4 (git'e girmez)
+├─ paths.py       ortak yol tanımları
+├─ launcher.py    kısayol → apps/launcher.py
+├─ local_api.py   kısayol → core/local_api.py
+├─ baslat.bat     çift tıkla: space listesi
+└─ api_baslat.bat çift tıkla: yerel API (http://127.0.0.1:8787)
+```
+
+| Klasör / dosya | Görev |
 |---|---|
-| `launcher.py` | Açılışta space seçim ekranı |
-| `spaces.json` | Space kayıtları (ad, host, modül, açıklama) |
-| `hf_image_app.py` | MiniMax H3 görsel arayüzü |
-| `hf_image_client.py` | MiniMax H3 API istemcisi + ortak transport/proxy katmanı |
-| `ltx_app.py` | LTX-2.3 video arayüzü |
-| `ltx_video_client.py` | LTX-2.3 API istemcisi (upload + 88 parametreli /generate) |
-| `minimax_video_app.py` | MiniMax H3 fotoğraftan video arayüzü |
-| `minimax_video_client.py` | MiniMax H3 API istemcisi (upload + /_fit_keyframe + 13 parametreli /generate) |
-| `krea_app.py` | Krea 2 Turbo görsel arayüzü |
-| `krea_client.py` | Krea 2 Turbo API istemcisi (upload + 41 parametreli /_generate_wrapper) |
-| `qwen_app.py` | Qwen Image 2.1 görsel arayüzü |
-| `qwen_client.py` | Qwen Image 2.1 API istemcisi (upload + /prepare + /generate) |
-| `ph3_app.py` | P-H3 görsel arayüzü |
-| `ph3_client.py` | P-H3 API istemcisi (upload + /generate fn 0 + /edit fn 1) |
-| `proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`) |
-| `db_bilgi.py` | `proxy_state.db` içeriğini gösterir |
-| `test_proxy_db.py` | Proxy havuzu testleri (FIFO, çoklu-sekme, migration) |
-| `baslat.bat` | Çift tıkla: space listesini açar |
-| `outputs/` | Üretilen PNG / MP4 dosyaları (git'e girmez) |
-| `settings*.json` | Son kullanılan ayarlar (otomatik, git'e girmez) |
-| `proxy_state.db` | Proxy kullanım veritabanı (otomatik, git'e girmez) |
-| `*.har` | Kaynak kayıtlar (git'e girmez) |
+| `apps/launcher.py` | Açılışta space seçim ekranı (ızgara kartlar, tek tık) |
+| `apps/*_app.py` | Dokuz space'in tkinter arayüzü |
+| `clients/hf_image_client.py` | Ortak transport / ProxyPool / RotatingTransport + MiniMax H3 Image |
+| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, Kokoro istemcileri |
+| `core/proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`, FIFO/LRU) |
+| `core/local_api.py` | Yerel FastAPI sunucusu — agent'lar için (bkz. `docs/AGENTS.md`) |
+| `config/spaces.json` | Space kayıtları (ad, host, modül, açıklama) |
+| `config/settings*.json` | Son kullanılan ayarlar (otomatik, git'e girmez) |
+| `data/*.har` | Kaynak HAR kayıtları (git'e girmez) |
+| `data/ips-*proxy*.txt` | Proxy listesi — kimlik bilgisi içerir, ASLA commit etme |
+| `data/proxy_state.*` | Proxy kullanım durumu (otomatik, git'e girmez) |
 
 ## Teknik özet — MiniMax H3 (`huggingface.co.m3max.har`)
 
@@ -292,3 +332,76 @@ Host: `https://prunaai-p-h3-image.hf.space` · Gradio 6.30.0
 - HAR'da 12 `/workflow/gradio_api/component_server` isteği (`curated_modalities`, `list_bound_fns`,
   `get_token` vb.) ve 1 workflow canvas join'i (`fn 0`, `data=[]`) vardır; UI/meta içindir, atlanır.
 - Join isteklerinde `x-zerogpu-*` ve `x-gradio-user` görünür; **gönderilmez** (bkz. `REVERSE.md`).
+
+## Teknik özet — Z-Image Turbo (`huggingface.co.z.image.har`)
+
+Host: `https://mrfakename-z-image-turbo.hf.space` · Gradio 6.20.0
+
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 3` (`/generate_image`),
+   `trigger_id: 16`, 6 elemanlı `data` → `{"event_id": "..."}`:
+   `[prompt, height, width, num_inference_steps, seed, randomize_seed]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed` beklenir
+   (`output.data[0]` = görsel FileData, `data[1]` = kullanılan seed).
+3. `GET /gradio_api/file=/tmp/gradio/<hash>/image.png` → PNG.
+
+**Parametre notları:**
+
+- Sıra `/gradio_api/info` ve `/config` `inputs` listesi
+  (`[4, 7, 8, 10, 13, 12]` = prompt, height, width, steps, seed, randomize)
+  ile doğrulandı; HAR'daki gerçek dizi `["sample prompt", 1024, 1024, 9, 42, true]`.
+- Varsayılanlar: height/width 1024 (512–2048, adım 64), steps 9 (1–20), seed 42,
+  randomize_seed true. İstemci tüm slotları açıkça gönderir.
+- HAR'da ayrıca `fn_index: 2` (`_start_timer`, `data: []`) ve `fn_index: 4`
+  (`_show_took`, `data: [null]`) join'leri vardır; ikisi de yalnızca süre göstergesini
+  günceller, üretimi etkilemez ve istemcide **atlanır**.
+- Upload isteği yoktur. `x-zerogpu-*` / `x-zerogpu-token` / `x-mfn-sid` /
+  `x-gradio-user` başlıkları HAR'da görünür; **gönderilmez** (bkz. `REVERSE.md`).
+- Cookie / `Authorization` / HF tokeni yoktur ve gönderilmez.
+
+## Teknik özet — LTX-Video Distilled (`huggingface.co.ltx.0.9.video.har`)
+
+Host: `https://lightricks-ltx-video-distilled.hf.space` · Gradio 5.42.0
+
+1. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files`
+   → `["/tmp/gradio/<hash>/beat_2.png"]`
+2. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 0`
+   (`/handle_image_upload_for_dims`), `trigger_id: 8`, 3 eleman:
+   `[FileData, current_h, current_w]` → SSE `output.data = [height, width]`
+3. `POST /gradio_api/queue/join` — `fn_index: 5` (`/image_to_video`),
+   `trigger_id: 10`, 13 eleman:
+   `[prompt, negative_prompt, image, null, height, width, mode, duration,
+   frames, seed, randomize_seed, guidance, improve_texture]` → SSE `process_completed`
+4. `GET /gradio_api/file=/tmp/gradio/<hash>/output_*.mp4` → MP4
+
+**Parametre notları:**
+
+- fn 0 çıktısı kritiktir: HAR'da `512, 704` gönderilmiş, sunucu görsel oranına göre
+  `768, 1280` döndürmüş ve bu değerler fn 5'e geçmiştir. İstemci aynı zinciri izler.
+- 13 parametrenin sırası `/gradio_api/info` ve `/config` `inputs` listesi
+  (`[9,35,8,7,44,45,34,27,22,37,38,41,28]`) ile doğrulandı.
+- Aralıklar: height/width 256–1280, duration 0.3–8.5 sn, frame 9–257,
+  guidance 1–10; varsayılanlar 512/704, 2 sn, 9 frame, seed 42, randomize true.
+- `mode` sabit: `image-to-video` (text/video-to-video modları bu HAR'da kullanılmadı).
+- `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesi içindir, atlanır.
+- Join isteklerinde `x-zerogpu-*` görünür; **gönderilmez** (bkz. `REVERSE.md`).
+
+## Teknik özet — Kokoro TTS (`huggingface.co.kokoro.tts.fast.har`)
+
+Host: `https://hexgrad-kokoro-tts.hf.space` · Gradio 5.24.0
+
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 4` (`/Generate`),
+   `trigger_id: 2`, 4 elemanlı `data` → `{"event_id": "..."}`:
+   `[text, voice, speed, hardware]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed`
+   (`output.data[0]` = ses FileData, `data[1]` = kullanılan token'lar)
+3. `GET /gradio_api/file=/tmp/gradio/<hash>/audio.wav` → WAV
+
+**Parametre notları:**
+
+- HAR'daki gerçek dizi: `["In my younger and more vulnerable years…", "af_heart", 1, true]`.
+- Şema `/gradio_api/info` içinde **yok** (endpoint'ler gizli); `/config` component'lerinden
+  çıkarıldı: `inputs [22(text), 24(voice), 27(speed), 25(hardware)]`.
+- 28 ses değeri (`af_heart`, `af_bella`, …, `bm_daniel`); varsayılan `af_heart`.
+- Speed 0.5–2.0 (adım 0.1); hardware `true` = ZeroGPU, `false` = CPU.
+- Text alanı üst sınırı ~500 karakter (Stream modu 5000, bu HAR'da kullanılmadı).
+- Upload isteği yoktur. `x-zerogpu-*` / cookie / `Authorization` gönderilmez.

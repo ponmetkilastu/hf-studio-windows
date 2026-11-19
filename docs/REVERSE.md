@@ -169,5 +169,8 @@ Yeni bir transport/proxy katmanı yazma.
 | `Intruzo/Krea-2-Turbo_v2` | upload → join(fn 4, 41 parametre) → SSE → PNG | `on_mode_change` join'i atlanır |
 | `linoyts/qwen-image-2-1-realtime` | upload × N → join(fn 10 `/prepare`, 6 param) → join(fn 11 `/generate`, 5 param) → SSE → PNG | Gallery sarmalayıcısı; `push_live` önizleme join'leri atlanır |
 | `PrunaAI/P-H3-Image` | upload → join(fn 0 `/generate`, 6 param veya fn 1 `/edit`, 13 param) → SSE → PNG | Giriş görselleri path string; **çıktı `image_data` data-URI olarak SSE içinde gömülü** (ayrı indirme yok); workflow `component_server` istekleri atlanır; `trigger_id: null` |
+| `mrfakename/Z-Image-Turbo` | join(fn 3 `/generate_image`, 6 param) → SSE → join(fn 4 `_show_took`, `[null]`, UI-only atlanır) → `GET /gradio_api/file=.../image.png` | Upload yok; `data: [prompt, height, width, steps, seed, randomize_seed]`; `trigger_id: 16`; fn 2 `_start_timer` ve fn 4 `_show_took` UI-only; `x-zerogpu-*` / `x-mfn-sid` gönderilmez |
+| `Lightricks/ltx-video-distilled` | upload → join(fn 0 `/handle_image_upload_for_dims`, 3 param, trigger 8) → join(fn 5 `/image_to_video`, 13 param, trigger 10) → SSE → `GET /gradio_api/file=.../output_*.mp4` | fn 0 görsel oranına göre **height/width döndürür**, bu değerler fn 5'e gider; `upload_progress` SSE'si UI-only atlanır; FileData sözlüğü; `x-zerogpu-*` gönderilmez |
+| `hexgrad/Kokoro-TTS` | join(fn 4 `/Generate`, 4 param, trigger 2) → SSE → `GET /gradio_api/file=.../audio.wav` | Upload yok; `data: [text, voice, speed, hardware]`; 28 ses (`af_heart` varsayılan), speed 0.5-2.0, hardware true=ZeroGPU/false=CPU; `/info` boş (api gizli), şema `/config`'ten çıkarıldı; `x-zerogpu-*` gönderilmez |
 
 Bu tabloya yeni space eklendiğinde güncelle.

@@ -8,7 +8,14 @@ Kontrol edilenler:
   5. Eski JSON state DB'ye aktarilir.
 """
 
+
 from __future__ import annotations
+
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
 
 import json
 import os
@@ -21,7 +28,7 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(APP_DIR, "ips-datacenter_proxy12026-11-16T01_15_06.647Z.txt")
 sys.path.insert(0, APP_DIR)
 
-from hf_image_client import ProxyPool  # noqa: E402
+from clients.hf_image_client import ProxyPool  # noqa: E402
 
 failures: list[str] = []
 
@@ -35,7 +42,7 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 CHILD = r'''
 import os, sys, time, json
 sys.path.insert(0, {app!r})
-from hf_image_client import ProxyPool
+from clients.hf_image_client import ProxyPool
 state, count = sys.argv[1], int(sys.argv[2])
 pool = ProxyPool({src!r}, state_path=state)
 out = []

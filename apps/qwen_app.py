@@ -1,17 +1,27 @@
-"""P-H3-Image (PrunaAI) — Windows masaustu arayuzu (gorsel uretme / duzenleme).
+"""Qwen Image 2.1 Realtime — Windows masaustu arayuzu (gorsel uretme / duzenleme).
 
 Calistirma:
-    python ph3_app.py       (veya baslat.bat -> Space listesi)
+    python qwen_app.py          (veya baslat.bat -> Space listesi)
 
 Gereksinimler:
     pip install requests pillow
 
-"generate" modu metinden gorsel uretir; "edit" modu kaynak gorseli (+ en fazla 7
-referans) verilen talimata gore duzenler.
+Bir veya daha fazla referans gorsel (opsiyonel, en fazla 10) ve prompt ile
+gorsel uretir. Once /prepare (seed + oran), sonra /generate cagrilir.
+Her uretim tek proxy IP'si uzerinden gonderilir.
 """
+
 
 from __future__ import annotations
 
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
+
+
+import io
 import json
 import os
 import queue
@@ -26,10 +36,10 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageOps, ImageTk
 
-import ph3_client as api
+import clients.qwen_client as api
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SETTINGS_PATH = os.path.join(APP_DIR, "settings_ph3.json")
+APP_DIR = ROOT_DIR
+SETTINGS_PATH = os.path.join(SETTINGS_DIR, "settings_qwen.json")
 OUTPUT_DIR = os.path.join(APP_DIR, "outputs")
 
 BG = "#0f1115"
@@ -49,10 +59,10 @@ FONT = "Segoe UI"
 MONO = "Consolas"
 
 
-class PH3App(tk.Tk):
+class QwenApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("P-H3-Image · Görsel")
+        self.title("Qwen Image 2.1 · Görsel")
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         width = min(1260, max(900, screen_w - 40))
@@ -78,11 +88,10 @@ class PH3App(tk.Tk):
         self._init_style()
         self._build()
         self._set_busy(False)
-        self._sync_mode()   # generate modunda gorsel listesini devre disi birak
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._pump_job = self.after(100, self._pump)
 
-        self._append_log("info", "Hazır. Mod seçin, prompt yazın ve ÜRET'e basın.")
+        self._append_log("info", "Hazır. İsterseniz referans görsel(ler) ekleyin, prompt yazın ve ÜRET'e basın.")
         if self.proxy_file:
             self._append_log("info", f"Proxy dosyası: {os.path.basename(self.proxy_file)} · {len(self.pool)} IP")
         else:
@@ -113,13 +122,12 @@ class PH3App(tk.Tk):
 
     def _save_settings(self) -> None:
         data = {
-            "mode": self.mode_var.get(),
             "prompt": self.prompt_text.get("1.0", "end").strip(),
-            "aspect": self.aspect_var.get(),
-            "resolution": self.resolution_var.get(),
             "seed": self.seed_var.get(),
             "randomize": bool(self.randomize_var.get()),
-            "upsample": bool(self.upsample_var.get()),
+            "enhance": bool(self.enhance_var.get()),
+            "aspect": self.aspect_var.get(),
+            "resolution": self.resolution_var.get(),
             "optimize": bool(self.optimize_var.get()),
             "use_proxy": bool(self.use_proxy_var.get()),
             "proxy_file": self.proxy_file,
@@ -168,13 +176,13 @@ class PH3App(tk.Tk):
         header.columnconfigure(0, weight=1)
         title = tk.Frame(header, bg=PANEL)
         title.grid(row=0, column=0, sticky="w", padx=22, pady=12)
-        tk.Label(title, text="P-H3", bg=PANEL, fg=ACCENT, font=(FONT, 22, "bold")).pack(side="left")
-        tk.Label(title, text=" · Image", bg=PANEL, fg=FG, font=(FONT, 22)).pack(side="left")
+        tk.Label(title, text="Qwen 2.1", bg=PANEL, fg=ACCENT, font=(FONT, 22, "bold")).pack(side="left")
+        tk.Label(title, text=" · Görsel", bg=PANEL, fg=FG, font=(FONT, 22)).pack(side="left")
         tk.Label(title, text="  ·  metinden görsel / görsel düzenleme",
                  bg=PANEL, fg=MUTED, font=(FONT, 10)).pack(side="left", pady=(8, 0))
         right = tk.Frame(header, bg=PANEL)
         right.grid(row=0, column=1, sticky="e", padx=22)
-        tk.Label(right, text="PrunaAI / P-H3-Image", bg=PANEL, fg=MUTED,
+        tk.Label(right, text="linoyts / qwen-image-2-1-realtime", bg=PANEL, fg=MUTED,
                  font=(FONT, 9)).pack(side="left", padx=(0, 12))
         self._btn(right, "⌂  Space seç", self._back_to_launcher, small=True).pack(side="left")
 
@@ -189,6 +197,7 @@ class PH3App(tk.Tk):
         body.columnconfigure(0, weight=0, minsize=450)
         body.columnconfigure(1, weight=1)
 
+        # Sol kolon: kaydirilabilir ayarlar + sabit uretim butonu.
         left_col = tk.Frame(body, bg=BG, width=450)
         left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
         left_col.grid_propagate(False)
@@ -199,11 +208,13 @@ class PH3App(tk.Tk):
         left_outer.grid(row=0, column=0, sticky="nsew")
         left_outer.rowconfigure(0, weight=1)
         left_outer.columnconfigure(0, weight=1)
+
         left_canvas = tk.Canvas(left_outer, bg=BG, highlightthickness=0, bd=0)
         left_canvas.grid(row=0, column=0, sticky="nsew")
         left_scroll = ttk.Scrollbar(left_outer, orient="vertical", command=left_canvas.yview)
         left_scroll.grid(row=0, column=1, sticky="ns")
         left_canvas.configure(yscrollcommand=left_scroll.set)
+
         left = tk.Frame(left_canvas, bg=BG)
         self._left_window = left_canvas.create_window((0, 0), window=left, anchor="nw")
         left.bind("<Configure>", lambda _e: left_canvas.configure(scrollregion=left_canvas.bbox("all")))
@@ -248,31 +259,19 @@ class PH3App(tk.Tk):
             c.create_line(x, 1, x + 3, 1, fill=f"#{col[0]:02x}{col[1]:02x}{col[2]:02x}", width=3)
 
     def _build_left(self, parent: tk.Frame) -> None:
-        # Mod
-        mode_card = tk.Frame(parent, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
-        mode_card.pack(fill="x")
-        mh = tk.Frame(mode_card, bg=CARD)
-        mh.pack(fill="x", padx=12, pady=(10, 0))
-        tk.Label(mh, text="MOD", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(side="left")
-        self.mode_var = tk.StringVar(value=self.settings.get("mode", "generate"))
-        for m, txt in (("generate", "generate · metinden görsel"),
-                       ("edit", "edit · görsel düzenleme")):
-            tk.Radiobutton(mode_card, text=txt, variable=self.mode_var, value=m, bg=CARD,
-                           fg=FG, selectcolor=CARD2, activebackground=CARD,
-                           font=(FONT, 9), anchor="w", command=self._sync_mode).pack(fill="x", padx=12)
-
-        # Gorseller (edit modunda kaynak + referanslar)
+        # Referans gorseller
         img_card = tk.Frame(parent, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
-        img_card.pack(fill="x", pady=(10, 0))
+        img_card.pack(fill="x")
         ih = tk.Frame(img_card, bg=CARD)
         ih.pack(fill="x", padx=12, pady=(10, 0))
-        tk.Label(ih, text="GÖRSELLER (edit)", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(side="left")
+        tk.Label(ih, text="REFERANS GÖRSELLER (isteğe bağlı)", bg=CARD, fg=FG,
+                 font=(FONT, 8, "bold")).pack(side="left")
         self._btn(ih, "Ekle", self._add_image, small=True).pack(side="right")
         self._btn(ih, "Temizle", self._clear_images, small=True).pack(side="right", padx=(0, 6))
         self.thumb = tk.Canvas(img_card, bg="#0a0c10", height=96, highlightthickness=0)
         self.thumb.pack(fill="x", padx=12, pady=(8, 6))
         self.thumb.bind("<Configure>", lambda _e: self._draw_thumb())
-        self.image_label = tk.Label(img_card, text="Görsel yok (generate modu)",
+        self.image_label = tk.Label(img_card, text="Görsel yok (metinden üretim)",
                                     bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w")
         self.image_label.pack(fill="x", padx=12, pady=(0, 4))
         self.image_list = tk.Listbox(img_card, height=3, bg="#0a0c10", fg=FG,
@@ -283,12 +282,11 @@ class PH3App(tk.Tk):
         self._btn(img_card, "Seçiliyi kaldır", self._remove_image, small=True).pack(
             anchor="e", padx=12, pady=(0, 10))
 
-        # Prompt / talimat
+        # Prompt
         pc = tk.Frame(parent, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
         pc.pack(fill="x", pady=(10, 0))
-        tk.Label(pc, text="PROMPT / TALİMAT", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(
-            anchor="w", padx=12, pady=(10, 0))
-        self.prompt_text = self._textbox(pc, 3, self.settings.get("prompt", "A cinematic portrait in soft natural light"))
+        tk.Label(pc, text="PROMPT", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(anchor="w", padx=12, pady=(10, 0))
+        self.prompt_text = self._textbox(pc, 3, self.settings.get("prompt", api.DEFAULT_PROMPT))
         self.prompt_text.bind("<Control-Return>", lambda _e: (self._start_generate(), "break")[1])
 
         # Secenekler
@@ -311,14 +309,17 @@ class PH3App(tk.Tk):
                 row=r, column=c, sticky="ew", padx=padx, pady=2)
 
         s = self.settings
-        self.aspect_var = tk.StringVar(value=s.get("aspect", api.DEFAULT_ASPECT))
-        self.resolution_var = tk.StringVar(value=s.get("resolution", api.DEFAULT_RESOLUTION))
-        self.seed_var = tk.StringVar(value=str(s.get("seed", "42")))
+        self.seed_var = tk.StringVar(value=str(s.get("seed", "0")))
         self.randomize_var = tk.BooleanVar(value=bool(s.get("randomize", True)))
-        self.upsample_var = tk.BooleanVar(value=bool(s.get("upsample", True)))
+        self.enhance_var = tk.BooleanVar(value=bool(s.get("enhance", False)))
+        self.aspect_var = tk.StringVar(value=s.get("aspect", "Auto"))
+        if self.aspect_var.get() not in api.ASPECT_RATIOS:
+            self.aspect_var.set("Auto")
+        self.resolution_var = tk.StringVar(value=str(s.get("resolution", 1024)))
 
-        lbl("Oran", 0, 0); combo(self.aspect_var, api.ASPECTS, 0, 1)
-        lbl("Çözünürlük", 0, 2); combo(self.resolution_var, api.RESOLUTIONS, 0, 3, (0, 12))
+        lbl("Oran", 0, 0); combo(self.aspect_var, api.ASPECT_RATIOS, 0, 1)
+        lbl("Çözünürlük", 0, 2)
+        combo(self.resolution_var, [str(r) for r in api.RESOLUTIONS], 0, 3, (0, 12))
         lbl("Seed", 1, 0)
         seed_row = tk.Frame(opts, bg=CARD)
         seed_row.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=2)
@@ -331,7 +332,7 @@ class PH3App(tk.Tk):
         tk.Checkbutton(opts, text="rastgele seed", variable=self.randomize_var,
                        command=self._sync_seed_state, bg=CARD, fg=FG, selectcolor=CARD2,
                        activebackground=CARD, font=(FONT, 8)).grid(row=1, column=2, columnspan=2, sticky="w", padx=(0, 12))
-        tk.Checkbutton(opts, text="upsample", variable=self.upsample_var,
+        tk.Checkbutton(opts, text="prompt'u zenginleştir (yavaş)", variable=self.enhance_var,
                        bg=CARD, fg=FG, selectcolor=CARD2, activebackground=CARD,
                        font=(FONT, 8)).grid(row=2, column=0, columnspan=4, sticky="w", padx=(12, 0), pady=2)
 
@@ -403,28 +404,24 @@ class PH3App(tk.Tk):
                 canvas.yview_scroll(-1, "units")
             elif event.num == 5:
                 canvas.yview_scroll(1, "units")
+
         def apply(w: tk.Misc) -> None:
             w.bind("<MouseWheel>", scroll)
             w.bind("<Button-4>", scroll)
             w.bind("<Button-5>", scroll)
             for child in w.winfo_children():
                 apply(child)
-        apply(widget)
 
-    def _sync_mode(self) -> None:
-        edit = self.mode_var.get() == "edit"
-        state = "normal" if edit else "disabled"
-        self.image_list.configure(state=state)
-        self._draw_thumb()
+        apply(widget)
 
     def _add_image(self) -> None:
         files = filedialog.askopenfilenames(
-            title="Görseller (1 kaynak + 7 referans)",
+            title="Referans görseller (en fazla 10)",
             filetypes=[("Görseller", "*.png *.jpg *.jpeg *.webp"), ("Tümü", "*.*")],
         )
         for p in files:
-            if len(self.image_paths) >= api.MAX_REFS + 1:
-                self._append_log("warn", f"En fazla {api.MAX_REFS + 1} görsel eklenebilir.")
+            if len(self.image_paths) >= api.MAX_IMAGES:
+                self._append_log("warn", f"En fazla {api.MAX_IMAGES} görsel eklenebilir.")
                 break
             if p not in self.image_paths:
                 self.image_paths.append(p)
@@ -432,7 +429,8 @@ class PH3App(tk.Tk):
         self._refresh_image_label()
 
     def _remove_image(self) -> None:
-        for idx in reversed(list(self.image_list.curselection())):
+        sel = list(self.image_list.curselection())
+        for idx in reversed(sel):
             self.image_list.delete(idx)
             if idx < len(self.image_paths):
                 self.image_paths.pop(idx)
@@ -445,11 +443,8 @@ class PH3App(tk.Tk):
 
     def _refresh_image_label(self) -> None:
         n = len(self.image_paths)
-        edit = self.mode_var.get() == "edit"
-        self.image_label.configure(
-            text=(f"{n} görsel · ilki kaynak" if edit else f"{n} görsel (generate modunda kullanılmaz)") if n
-                 else ("Görsel yok · edit için kaynak ekleyin" if edit else "Görsel yok (generate modu)"),
-            fg=FG if n else MUTED)
+        self.image_label.configure(text=f"{n} görsel" if n else "Görsel yok (metinden üretim)",
+                                   fg=FG if n else MUTED)
         self._draw_thumb()
 
     def _fit_photo(self, canvas: tk.Canvas, path: Optional[str]) -> None:
@@ -507,17 +502,16 @@ class PH3App(tk.Tk):
             return
         prompt = self.prompt_text.get("1.0", "end").strip()
         if not prompt:
-            messagebox.showwarning("Prompt", "Prompt / talimat yazın.")
-            return
-        mode = self.mode_var.get()
-        if mode == "edit" and not self.image_paths:
-            messagebox.showwarning("Görsel", "Edit modu için kaynak görsel ekleyin.")
+            messagebox.showwarning("Prompt", "Ne üretmek istediğinizi yazın.")
             return
         try:
             seed = random.randint(0, 2_147_483_647) if self.randomize_var.get() \
                 else int(self.seed_var.get().strip() or "0")
+            resolution = int(self.resolution_var.get())
+            if resolution not in api.RESOLUTIONS:
+                raise ValueError
         except ValueError:
-            messagebox.showwarning("Seed", "Seed tam sayı olmalı.")
+            messagebox.showwarning("Ayar", "Seed tam sayı, çözünürlük 512/1024/1536 olmalı.")
             return
 
         use_proxy = bool(self.use_proxy_var.get()) and self.pool is not None
@@ -526,21 +520,21 @@ class PH3App(tk.Tk):
         self.status_var.set("İstek hazırlanıyor…")
         self.save_btn.configure(state="disabled")
         self.open_btn.configure(state="disabled")
-        self._append_log("info", f"Üretim başlatıldı · {mode} · {self.resolution_var.get()} · "
-                                 f"seed={'rastgele' if self.randomize_var.get() else seed}")
+        self._append_log("info", f"Üretim başlatıldı · {resolution}px · {self.aspect_var.get()} · "
+                                 f"{len(self.image_paths)} görsel · seed="
+                                 f"{'rastgele' if self.randomize_var.get() else seed}")
 
-        # args gerçek tuple olmalı (sondaki virgül zorunlu).
+        # NOT: args gerçek bir tuple olmalı — sondaki virgül zorunlu (krea hatası tekrarlanmasın).
         self.worker = threading.Thread(
             target=self._thread_entry,
             args=(dict(
-                mode=mode,
                 prompt=prompt,
-                images=list(self.image_paths),
-                aspect=self.aspect_var.get(),
-                resolution=self.resolution_var.get(),
-                upsample=bool(self.upsample_var.get()),
+                image_paths=list(self.image_paths),
                 seed=seed,
-                randomize=bool(self.randomize_var.get()),
+                randomize_seed=bool(self.randomize_var.get()),
+                enhance=bool(self.enhance_var.get()),
+                aspect_ratio=self.aspect_var.get(),
+                resolution=resolution,
                 optimize_images=bool(self.optimize_var.get()),
                 use_proxy=use_proxy,
             ),),
@@ -549,6 +543,7 @@ class PH3App(tk.Tk):
         self.worker.start()
 
     def _thread_entry(self, kw: dict) -> None:
+        """Thread girisindeki hata bile arayuze event olarak ulassın; sessiz kilitlenme olmasın."""
         try:
             self._run_job(kw)
         except Exception as exc:
@@ -560,19 +555,8 @@ class PH3App(tk.Tk):
             self.events.put(("log", level, msg))
         try:
             use_proxy = kw.pop("use_proxy")
-            client = api.PH3Client(proxy_pool=self.pool if use_proxy else None, on_log=log)
-            if kw.pop("mode") == "edit":
-                result = client.edit(
-                    kw["images"][0], kw["prompt"], ref_paths=kw["images"][1:],
-                    resolution=kw["resolution"], upsample=kw["upsample"],
-                    seed=kw["seed"], randomize=kw["randomize"],
-                    optimize_images=kw["optimize_images"],
-                )
-            else:
-                result = client.generate(
-                    kw["prompt"], aspect=kw["aspect"], resolution=kw["resolution"],
-                    upsample=kw["upsample"], seed=kw["seed"], randomize=kw["randomize"],
-                )
+            client = api.QwenClient(proxy_pool=self.pool if use_proxy else None, on_log=log)
+            result = client.generate(**kw)
             self.events.put(("result", result))
         except Exception as exc:
             self.events.put(("error", str(exc)))
@@ -605,7 +589,7 @@ class PH3App(tk.Tk):
     def _on_result(self, result: api.ImageResult) -> None:
         self.result = result
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = os.path.join(OUTPUT_DIR, f"ph3_{stamp}.png")
+        path = os.path.join(OUTPUT_DIR, f"qwen_{stamp}.png")
         try:
             with open(path, "wb") as fh:
                 fh.write(result.image_bytes)
@@ -616,7 +600,7 @@ class PH3App(tk.Tk):
         self._draw_stage()
         self.save_btn.configure(state="normal")
         self.open_btn.configure(state="normal" if self.result_path else "disabled")
-        info = f"{result.size_kb:.0f} KB · seed {result.seed} · {result.elapsed:.0f} sn"
+        info = f"{result.size_kb:.0f} KB · seed {result.seed} · {result.resolution}px · {result.aspect_ratio} · {result.elapsed:.0f} sn"
         self.info_var.set(info)
         self.status_var.set("Tamamlandı ✓")
         self._append_log("ok", f"Sonuç hazır: {os.path.basename(path) if path else 'bellekte'}")
@@ -637,7 +621,7 @@ class PH3App(tk.Tk):
         if not self.result:
             return
         path = filedialog.asksaveasfilename(title="PNG kaydet", defaultextension=".png",
-                                            initialfile=os.path.basename(self.result_path or "ph3.png"),
+                                            initialfile=os.path.basename(self.result_path or "qwen.png"),
                                             initialdir=OUTPUT_DIR,
                                             filetypes=[("PNG görsel", "*.png")])
         if not path:
@@ -667,9 +651,11 @@ class PH3App(tk.Tk):
             if not messagebox.askyesno("Space seç", "Üretim sürüyor. Yine de menüye dönmek istiyor musunuz?"):
                 return
         self._save_settings()
+        # Launcher uzerinden acildiyk sadece kapanir; launcher geri gelecek.
+        # Dogrudan acildiyk yeni launcher baslat.
         if not os.environ.get("HF_STUDIO_LAUNCHER_ACTIVE"):
             try:
-                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "launcher.py")])
+                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "apps", "launcher.py")])
             except OSError:
                 pass
         try:
@@ -703,7 +689,7 @@ class PH3App(tk.Tk):
 def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    PH3App().mainloop()
+    QwenApp().mainloop()
 
 
 if __name__ == "__main__":

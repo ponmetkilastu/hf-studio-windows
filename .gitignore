@@ -1,5 +1,6 @@
-# -- HAR dosyalari (tersine muhendislik kaynaklari, gizli) --
+# -- HAR dosyalari (data/ altinda, tersine muhendislik kaynaklari, gizli) --
 *.har
+data/*.har
 
 # -- Uretim ciktilari --
 outputs/
@@ -25,6 +26,9 @@ settings_minimax_video.json
 settings_krea.json
 settings_qwen.json
 settings_ph3.json
+settings_zimage.json
+settings_ltx09.json
+settings_kokoro.json
 
 # -- Python --
 __pycache__/

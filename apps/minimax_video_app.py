@@ -1,16 +1,25 @@
-"""LTX-2.3 10Eros — Windows masaustu arayuzu (fotograftan video).
+"""MiniMax H3 — Windows masaustu arayuzu (fotograftan video / image-to-video).
 
 Calistirma:
-    python ltx_app.py          (veya baslat.bat -> Space listesi)
+    python minimax_video_app.py     (veya baslat.bat -> Space listesi)
 
 Gereksinimler:
     pip install requests pillow
 
-Tek bir fotograf + prompt ile video uretir. Her uretim tek bir proxy IP'si
-uzerinden gonderilir; yeni uretimde listeden farkli bir IP alinir.
+Bir baslangic fotografi (isteseniz ek olarak bir son kare) ve prompt ile video uretir.
+Her uretim tek bir proxy IP'si uzerinden gonderilir; yeni uretimde listeden farkli bir
+IP alinir.
 """
 
+
 from __future__ import annotations
+
+import os as _os, sys as _sys
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _ROOT not in _sys.path:
+    _sys.path.insert(0, _ROOT)
+from paths import ROOT_DIR, CONFIG_DIR, DATA_DIR, OUTPUT_DIR, SETTINGS_DIR, PROXY_FILE
+
 
 import json
 import os
@@ -26,13 +35,13 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageTk
 
-import ltx_video_client as api
+import clients.minimax_video_client as api
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-SETTINGS_PATH = os.path.join(APP_DIR, "settings_ltx.json")
+APP_DIR = ROOT_DIR
+SETTINGS_PATH = os.path.join(SETTINGS_DIR, "settings_minimax_video.json")
 OUTPUT_DIR = os.path.join(APP_DIR, "outputs")
 
-# -- renkler (hf_image_app ile ayni palet) --------------------------------- #
+# -- renkler (ortak palet, MiniMax icin sicak vurgu) ----------------------- #
 BG = "#0f1115"
 PANEL = "#151820"
 CARD = "#1b1f28"
@@ -40,7 +49,7 @@ CARD2 = "#242a36"
 BORDER = "#2b3140"
 FG = "#e9ecf1"
 MUTED = "#8b93a1"
-ACCENT = "#7c5cff"
+ACCENT = "#ff7a3d"
 ACCENT2 = "#31c8ff"
 OK = "#38d39f"
 WARN = "#ffb020"
@@ -50,20 +59,20 @@ PROXY = "#6fb8ff"
 FONT = "Segoe UI"
 MONO = "Consolas"
 
-SIZES = ["768x768", "896x1152", "1120x1344", "1280x960", "1344x1120", "1152x896"]
 
-
-class LtXApp(tk.Tk):
+class MiniMaxVideoApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("LTX-2.3 10Eros · Video Studio")
-        self.geometry("1240x820+24+12")
+        self.title("MiniMax H3 · Fotoğraftan Video")
+        self.geometry("1260x840+20+10")
         self.minsize(1080, 740)
         self.configure(bg=BG)
         self._set_icon()
 
         self.photo_path: Optional[str] = None
+        self.last_path: Optional[str] = None
         self._thumb_ref = None
+        self._last_thumb_ref = None
         self.events: "queue.Queue[tuple]" = queue.Queue()
         self.worker: Optional[threading.Thread] = None
         self.result: Optional[api.VideoResult] = None
@@ -80,9 +89,11 @@ class LtXApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self._pump_job = self.after(100, self._pump)
 
-        self._append_log("info", "Hazır. Bir fotoğraf seçin, prompt yazın ve ÜRET'e basın.")
+        self._append_log("info", "Hazır. Başlangıç fotoğrafı seçin, prompt yazın ve ÜRET'e basın.")
         if self.proxy_file:
-            self._append_log("info", f"Proxy dosyası: {os.path.basename(self.proxy_file)} · {len(self.pool)} IP")
+            self._append_log(
+                "info", f"Proxy dosyası: {os.path.basename(self.proxy_file)} · {len(self.pool)} IP"
+            )
         else:
             self._append_log("warn", "Proxy dosyası bulunamadı; doğrudan bağlantı kullanılacak.")
 
@@ -97,9 +108,9 @@ class LtXApp(tk.Tk):
             for y in range(64):
                 t = y / 63
                 color = (
-                    int(124 * (1 - t) + 49 * t),
-                    int(92 * (1 - t) + 200 * t),
-                    int(255 * (1 - t) + 255 * t),
+                    int(255 * (1 - t) + 49 * t),
+                    int(122 * (1 - t) + 200 * t),
+                    int(61 * (1 - t) + 255 * t),
                 )
                 draw.line([(0, y), (64, y)], fill=color)
             draw.polygon([(24, 18), (46, 32), (24, 46)], fill=(255, 255, 255))
@@ -117,15 +128,16 @@ class LtXApp(tk.Tk):
 
     def _save_settings(self) -> None:
         data = {
-            "preset": self.preset_var.get(),
-            "mode": self.mode_var.get(),
-            "seconds": self.seconds_var.get(),
-            "size": self.size_var.get(),
+            "canvas": self.canvas_var.get(),
+            "duration": self.duration_var.get(),
+            "steps": self.steps_var.get(),
             "seed": self.seed_var.get(),
             "randomize": bool(self.randomize_var.get()),
+            "upsample": bool(self.upsample_var.get()),
+            "turbo": bool(self.turbo_var.get()),
             "optimize": bool(self.optimize_var.get()),
             "use_proxy": bool(self.use_proxy_var.get()),
-            "negative": self.negative_text.get("1.0", "end").strip(),
+            "prompt": self.prompt_text.get("1.0", "end").strip(),
             "proxy_file": self.proxy_file,
         }
         try:
@@ -186,11 +198,11 @@ class LtXApp(tk.Tk):
 
         title = tk.Frame(header, bg=PANEL)
         title.grid(row=0, column=0, sticky="w", padx=22, pady=12)
-        tk.Label(title, text="LTX", bg=PANEL, fg=ACCENT2, font=(FONT, 22, "bold")).pack(side="left")
-        tk.Label(title, text=" 2.3", bg=PANEL, fg=FG, font=(FONT, 22)).pack(side="left")
+        tk.Label(title, text="H3", bg=PANEL, fg=ACCENT, font=(FONT, 22, "bold")).pack(side="left")
+        tk.Label(title, text=" Video", bg=PANEL, fg=FG, font=(FONT, 22)).pack(side="left")
         tk.Label(
             title,
-            text="  ·  fotoğraftan video (10Eros)",
+            text="  ·  fotoğraftan video (image-to-video)",
             bg=PANEL,
             fg=MUTED,
             font=(FONT, 10),
@@ -198,7 +210,7 @@ class LtXApp(tk.Tk):
 
         right = tk.Frame(header, bg=PANEL)
         right.grid(row=0, column=1, sticky="e", padx=22)
-        tk.Label(right, text="rdata92 / LTX-2.3-10Eros", bg=PANEL, fg=MUTED, font=(FONT, 9)).pack(
+        tk.Label(right, text="wank3r / minimax-h3", bg=PANEL, fg=MUTED, font=(FONT, 9)).pack(
             side="left", padx=(0, 12)
         )
         self._btn(right, "⌂  Space seç", self._back_to_launcher, small=True).pack(side="left")
@@ -211,10 +223,10 @@ class LtXApp(tk.Tk):
         body = tk.Frame(self, bg=BG)
         body.grid(row=1, column=0, sticky="nsew", padx=16, pady=(12, 8))
         body.rowconfigure(0, weight=1)
-        body.columnconfigure(0, weight=0, minsize=452)
+        body.columnconfigure(0, weight=0, minsize=470)
         body.columnconfigure(1, weight=1)
 
-        left = tk.Frame(body, bg=BG, width=452)
+        left = tk.Frame(body, bg=BG, width=470)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
         left.grid_propagate(False)
         self._build_left(left)
@@ -245,8 +257,8 @@ class LtXApp(tk.Tk):
         for x in range(0, width, 3):
             t = x / max(width - 1, 1)
             color = (
-                int(124 + (49 - 124) * t),
-                int(92 + (200 - 92) * t),
+                int(255 + (49 - 255) * t),
+                int(122 + (200 - 122) * t),
                 255,
             )
             canvas.create_line(
@@ -260,18 +272,27 @@ class LtXApp(tk.Tk):
         photo_card.pack(fill="x")
         head = tk.Frame(photo_card, bg=CARD)
         head.pack(fill="x", padx=12, pady=(10, 0))
-        tk.Label(head, text="FOTOĞRAF", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(side="left")
+        tk.Label(head, text="BAŞLANGIÇ FOTOĞRAFI", bg=CARD, fg=FG, font=(FONT, 8, "bold")).pack(side="left")
         self._btn(head, "Seç", self._pick_photo, small=True).pack(side="right")
-        self.clear_btn = self._btn(head, "Kaldır", self._clear_photo, small=True)
-        self.clear_btn.pack(side="right", padx=(0, 6))
+        self._btn(head, "Kaldır", self._clear_photo, small=True).pack(side="right", padx=(0, 6))
 
-        self.thumb = tk.Canvas(photo_card, bg="#0a0c10", height=150, highlightthickness=0)
-        self.thumb.pack(fill="x", padx=12, pady=(8, 10))
+        self.thumb = tk.Canvas(photo_card, bg="#0a0c10", height=132, highlightthickness=0)
+        self.thumb.pack(fill="x", padx=12, pady=(8, 6))
         self.thumb.bind("<Configure>", lambda _e: self._draw_thumb())
         self.photo_label = tk.Label(
-            photo_card, text="Henüz fotoğraf yok", bg=CARD, fg=MUTED, font=(FONT, 9)
+            photo_card, text="Henüz fotoğraf yok", bg=CARD, fg=MUTED, font=(FONT, 9), anchor="w"
         )
-        self.photo_label.pack(anchor="w", padx=12, pady=(0, 10))
+        self.photo_label.pack(fill="x", padx=12, pady=(0, 4))
+
+        last_row = tk.Frame(photo_card, bg=CARD)
+        last_row.pack(fill="x", padx=12, pady=(0, 10))
+        tk.Label(last_row, text="Son kare", bg=CARD, fg=MUTED, font=(FONT, 8)).pack(side="left")
+        self._btn(last_row, "Kaldır", self._clear_last, small=True).pack(side="right")
+        self._btn(last_row, "Seç", self._pick_last, small=True).pack(side="right", padx=(0, 6))
+        self.last_label = tk.Label(
+            last_row, text="(opsiyonel · yok)", bg=CARD, fg=MUTED, font=(FONT, 8), anchor="e"
+        )
+        self.last_label.pack(side="right", padx=(0, 8), fill="x", expand=True)
 
         prompt_card = tk.Frame(parent, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
         prompt_card.pack(fill="x", pady=(10, 0))
@@ -288,33 +309,22 @@ class LtXApp(tk.Tk):
             relief="flat",
             highlightthickness=1,
             highlightbackground=BORDER,
+            highlightcolor=ACCENT,
             font=(FONT, 10),
             padx=8,
             pady=6,
         )
-        self.prompt_text.pack(fill="x", padx=12, pady=(5, 0))
-        self.prompt_text.insert("1.0", self.settings.get("prompt", "animate this photo"))
+        self.prompt_text.pack(fill="x", padx=12, pady=(5, 4))
+        self.prompt_text.insert("1.0", self.settings.get("prompt", api.DEFAULT_PROMPT))
         self.prompt_text.bind("<Control-Return>", lambda _e: (self._start_generate(), "break")[1])
-
-        tk.Label(prompt_card, text="NEGATİF PROMPT", bg=CARD, fg=MUTED, font=(FONT, 8, "bold")).pack(
-            anchor="w", padx=12, pady=(8, 0)
-        )
-        self.negative_text = tk.Text(
+        tk.Label(
             prompt_card,
-            height=2,
-            wrap="word",
-            bg="#0a0c10",
+            text="Hareketi ve kamera akışını betimleyin (İngilizce daha iyi sonuç verir).",
+            bg=CARD,
             fg=MUTED,
-            insertbackground=FG,
-            relief="flat",
-            highlightthickness=1,
-            highlightbackground=BORDER,
             font=(FONT, 8),
-            padx=8,
-            pady=5,
-        )
-        self.negative_text.pack(fill="x", padx=12, pady=(5, 12))
-        self.negative_text.insert("1.0", self.settings.get("negative", api.DEFAULT_NEGATIVE))
+            anchor="w",
+        ).pack(fill="x", padx=12, pady=(0, 10))
 
         opts = tk.Frame(parent, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
         opts.pack(fill="x", pady=(10, 0))
@@ -326,29 +336,29 @@ class LtXApp(tk.Tk):
                 row=r, column=c, sticky="w", padx=(12, 6), pady=5
             )
 
-        self.preset_var = tk.StringVar(value=self.settings.get("preset", "tuned"))
-        self.mode_var = tk.StringVar(value=self.settings.get("mode", "anchor only"))
-        self.seconds_var = tk.StringVar(value=str(self.settings.get("seconds", "4")))
-        self.size_var = tk.StringVar(value=self.settings.get("size", "1120x1344"))
+        self.canvas_var = tk.StringVar(value=self.settings.get("canvas", api.DEFAULT_CANVAS))
+        if self.canvas_var.get() not in api.CANVAS_PRESETS:
+            self.canvas_var.set(api.DEFAULT_CANVAS)
+        self.duration_var = tk.StringVar(value=str(self.settings.get("duration", "5")))
+        self.steps_var = tk.StringVar(value=str(self.settings.get("steps", "25")))
         self.randomize_var = tk.BooleanVar(value=bool(self.settings.get("randomize", True)))
+        self.upsample_var = tk.BooleanVar(value=bool(self.settings.get("upsample", False)))
+        self.turbo_var = tk.BooleanVar(value=bool(self.settings.get("turbo", False)))
         self.optimize_var = tk.BooleanVar(value=bool(self.settings.get("optimize", True)))
         self.use_proxy_var = tk.BooleanVar(
             value=bool(self.settings.get("use_proxy", True)) and self.pool is not None
         )
 
-        row_label("Preset", 0, 0)
-        ttk.Combobox(opts, textvariable=self.preset_var, values=api.PRESETS, state="readonly").grid(
-            row=0, column=1, sticky="ew", padx=(0, 10), pady=5
+        row_label("Canvas", 0, 0)
+        self.canvas_box = ttk.Combobox(
+            opts, textvariable=self.canvas_var, values=api.CANVAS_PRESETS, state="readonly"
         )
-        row_label("Mod", 0, 2)
-        ttk.Combobox(opts, textvariable=self.mode_var, values=api.MODES, state="readonly").grid(
-            row=0, column=3, sticky="ew", padx=(0, 12), pady=5
-        )
+        self.canvas_box.grid(row=0, column=1, columnspan=3, sticky="ew", padx=(0, 12), pady=5)
 
         row_label("Süre (sn)", 1, 0)
         tk.Entry(
             opts,
-            textvariable=self.seconds_var,
+            textvariable=self.duration_var,
             bg=CARD2,
             fg=FG,
             insertbackground=FG,
@@ -357,10 +367,18 @@ class LtXApp(tk.Tk):
             highlightbackground=BORDER,
             font=(FONT, 9),
         ).grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=5, ipady=2)
-        row_label("Çözünürlük", 1, 2)
-        ttk.Combobox(opts, textvariable=self.size_var, values=SIZES, state="readonly").grid(
-            row=1, column=3, sticky="ew", padx=(0, 12), pady=5
-        )
+        row_label("Adım", 1, 2)
+        tk.Entry(
+            opts,
+            textvariable=self.steps_var,
+            bg=CARD2,
+            fg=FG,
+            insertbackground=FG,
+            relief="flat",
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            font=(FONT, 9),
+        ).grid(row=1, column=3, sticky="ew", padx=(0, 12), pady=5, ipady=2)
 
         row_label("Seed", 2, 0)
         seed_row = tk.Frame(opts, bg=CARD)
@@ -398,19 +416,27 @@ class LtXApp(tk.Tk):
         )
         self.randomize_box.pack(side="left")
         self.seed_var.trace_add("write", self._on_seed_typed)
-        tk.Checkbutton(
-            checks,
-            text="yüklemede küçült",
-            variable=self.optimize_var,
-            bg=CARD,
-            fg=MUTED,
-            selectcolor=CARD,
-            activebackground=CARD,
-            activeforeground=FG,
-            font=(FONT, 8),
-            bd=0,
-            highlightthickness=0,
-        ).pack(side="left", padx=(10, 0))
+
+        checks2 = tk.Frame(opts, bg=CARD)
+        checks2.grid(row=3, column=1, columnspan=3, sticky="w", padx=(0, 12), pady=(0, 8))
+        for text, var in (
+            ("upsample", self.upsample_var),
+            ("turbo", self.turbo_var),
+            ("yüklemede küçült", self.optimize_var),
+        ):
+            tk.Checkbutton(
+                checks2,
+                text=text,
+                variable=var,
+                bg=CARD,
+                fg=MUTED,
+                selectcolor=CARD,
+                activebackground=CARD,
+                activeforeground=FG,
+                font=(FONT, 8),
+                bd=0,
+                highlightthickness=0,
+            ).pack(side="left", padx=(0, 10))
 
         foot = tk.Frame(parent, bg=BG)
         foot.pack(fill="x", pady=(10, 0))
@@ -419,9 +445,9 @@ class LtXApp(tk.Tk):
             text="▶   VİDEO ÜRET",
             command=self._start_generate,
             bg=ACCENT,
-            fg="white",
-            activebackground="#6a4ce0",
-            activeforeground="white",
+            fg="#1a0e06",
+            activebackground="#e0662c",
+            activeforeground="#1a0e06",
             relief="flat",
             bd=0,
             font=(FONT, 11, "bold"),
@@ -523,12 +549,12 @@ class LtXApp(tk.Tk):
         )
 
     # ------------------------------------------------------------------ #
-    #  Fotograf
+    #  Fotograflar
     # ------------------------------------------------------------------ #
 
     def _pick_photo(self) -> None:
         path = filedialog.askopenfilename(
-            title="Referans fotoğraf",
+            title="Başlangıç fotoğrafı",
             filetypes=[("Görseller", "*.png *.jpg *.jpeg *.webp *.bmp"), ("Tüm dosyalar", "*.*")],
         )
         if not path:
@@ -536,12 +562,35 @@ class LtXApp(tk.Tk):
         self.photo_path = path
         self.photo_label.configure(text=os.path.basename(path))
         self._draw_thumb()
-        self._append_log("info", f"Fotoğraf seçildi: {os.path.basename(path)}")
+        self._append_log("info", f"Başlangıç fotoğrafı: {os.path.basename(path)}")
 
     def _clear_photo(self) -> None:
         self.photo_path = None
         self.photo_label.configure(text="Henüz fotoğraf yok")
         self._draw_thumb()
+
+    def _pick_last(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Son kare (opsiyonel)",
+            filetypes=[("Görseller", "*.png *.jpg *.jpeg *.webp *.bmp"), ("Tüm dosyalar", "*.*")],
+        )
+        if not path:
+            return
+        self.last_path = path
+        try:
+            self.last_label.configure(text=os.path.basename(path), fg=FG)
+        except tk.TclError:
+            pass
+        self._append_log("info", f"Son kare: {os.path.basename(path)}")
+
+    def _clear_last(self) -> None:
+        if self.last_path:
+            self._append_log("info", "Son kare kaldırıldı.")
+        self.last_path = None
+        try:
+            self.last_label.configure(text="(opsiyonel · yok)", fg=MUTED)
+        except tk.TclError:
+            pass
 
     def _draw_thumb(self) -> None:
         canvas = self.thumb
@@ -600,7 +649,7 @@ class LtXApp(tk.Tk):
 
     def _set_busy(self, busy: bool) -> None:
         if busy:
-            self.gen_btn.configure(state="disabled", text="⏳   ÜRETİLİYOR…", bg="#3a3357")
+            self.gen_btn.configure(state="disabled", text="⏳   ÜRETİLİYOR…", bg="#4a3020")
             self.progress.start(12)
         else:
             self.progress.stop()
@@ -612,7 +661,7 @@ class LtXApp(tk.Tk):
         if self.worker and self.worker.is_alive():
             return
         if not self.photo_path:
-            messagebox.showwarning("Fotoğraf", "LTX tek bir referans fotoğrafla çalışır. Önce fotoğraf seçin.")
+            messagebox.showwarning("Fotoğraf", "Image-to-video için bir başlangıç fotoğrafı seçin.")
             return
         prompt = self.prompt_text.get("1.0", "end").strip()
         if not prompt:
@@ -621,11 +670,18 @@ class LtXApp(tk.Tk):
             return
 
         try:
-            seconds = float(self.seconds_var.get().replace(",", "."))
-            if not 1 <= seconds <= 10:
+            duration = float(self.duration_var.get().replace(",", "."))
+            if not api.DURATION_RANGE[0] <= duration <= api.DURATION_RANGE[1]:
                 raise ValueError
         except ValueError:
             messagebox.showwarning("Süre", "Süre 1-10 saniye arasında olmalı.")
+            return
+        try:
+            steps = int(float(self.steps_var.get().strip() or "25"))
+            if not api.STEPS_RANGE[0] <= steps <= api.STEPS_RANGE[1]:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning("Adım", "Adım 10-50 arasında olmalı.")
             return
         seed = 0
         if not self.randomize_var.get():
@@ -636,10 +692,6 @@ class LtXApp(tk.Tk):
             except ValueError:
                 messagebox.showwarning("Seed", "Seed 0 veya daha büyük bir tam sayı olmalı.")
                 return
-        try:
-            width, height = (int(v) for v in self.size_var.get().split("x"))
-        except ValueError:
-            width, height = 1120, 1344
 
         use_proxy = bool(self.use_proxy_var.get()) and self.pool is not None
         # DEBUG: Proxy durumu logla
@@ -661,15 +713,15 @@ class LtXApp(tk.Tk):
             target=self._run_job,
             args=(
                 self.photo_path,
+                self.last_path,
                 prompt,
-                self.negative_text.get("1.0", "end").strip(),
-                self.preset_var.get(),
-                seconds,
-                width,
-                height,
-                self.mode_var.get(),
+                self.canvas_var.get(),
+                duration,
+                steps,
                 seed,
                 bool(self.randomize_var.get()),
+                bool(self.upsample_var.get()),
+                bool(self.turbo_var.get()),
                 bool(self.optimize_var.get()),
                 use_proxy,
             ),
@@ -680,15 +732,15 @@ class LtXApp(tk.Tk):
     def _run_job(
         self,
         image_path: str,
+        last_path: Optional[str],
         prompt: str,
-        negative: str,
-        preset: str,
-        seconds: float,
-        width: int,
-        height: int,
-        mode: str,
+        canvas: str,
+        duration: float,
+        steps: int,
         seed: int,
         randomize: bool,
+        upsample: bool,
+        turbo: bool,
         optimize: bool,
         use_proxy: bool,
     ) -> None:
@@ -696,18 +748,18 @@ class LtXApp(tk.Tk):
             self.events.put(("log", level, msg))
 
         try:
-            client = api.LTXVideoClient(proxy_pool=self.pool if use_proxy else None, on_log=log)
+            client = api.MiniMaxVideoClient(proxy_pool=self.pool if use_proxy else None, on_log=log)
             result = client.generate(
                 image_path,
                 prompt,
-                negative_prompt=negative or None,
-                preset=preset,
-                seconds=seconds,
-                max_width=width,
-                max_height=height,
-                mode=mode,
+                last_image_path=last_path,
+                canvas=canvas,
+                duration=duration,
+                steps=steps,
                 seed=seed if not randomize else -1,
                 randomize=randomize,
+                upsample=upsample,
+                turbo=turbo,
                 optimize_image=optimize,
             )
             self.events.put(("result", result))
@@ -742,7 +794,7 @@ class LtXApp(tk.Tk):
     def _on_result(self, result: api.VideoResult) -> None:
         self.result = result
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = os.path.join(OUTPUT_DIR, f"ltx_{stamp}.mp4")
+        path = os.path.join(OUTPUT_DIR, f"minimax_video_{stamp}.mp4")
         try:
             with open(path, "wb") as fh:
                 fh.write(result.video_bytes)
@@ -754,11 +806,14 @@ class LtXApp(tk.Tk):
         self._draw_stage()
         self.play_btn.configure(state="normal" if self.result_path else "disabled")
         self.save_btn.configure(state="normal")
-        info = f"{result.size_mb:.1f} MB · seed {result.seed if result.seed is not None else '?'} · {result.elapsed:.0f} sn"
+        seed_text = result.seed if result.seed is not None else "?"
+        info = f"{result.size_mb:.1f} MB · {result.canvas} · seed {seed_text} · {result.elapsed:.0f} sn"
         if result.status:
-            info = f"{result.status[:90]} · " + info
+            info = f"{result.status[:70]} · " + info
         self.info_var.set(info)
         self.status_var.set("Tamamlandı ✓")
+        if result.status:
+            self._append_log("info", result.status)
         self._append_log("ok", f"Sonuç hazır: {os.path.basename(path) if path else 'bellekte'}")
         try:
             self.bell()
@@ -781,7 +836,7 @@ class LtXApp(tk.Tk):
         path = filedialog.asksaveasfilename(
             title="MP4 kaydet",
             defaultextension=".mp4",
-            initialfile=os.path.basename(self.result_path or "ltx.mp4"),
+            initialfile=os.path.basename(self.result_path or "minimax.mp4"),
             initialdir=OUTPUT_DIR,
             filetypes=[("MP4 video", "*.mp4")],
         )
@@ -816,7 +871,7 @@ class LtXApp(tk.Tk):
         # Dogrudan acildiyk yeni launcher baslat.
         if not os.environ.get("HF_STUDIO_LAUNCHER_ACTIVE"):
             try:
-                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "launcher.py")])
+                subprocess.Popen([sys.executable, os.path.join(APP_DIR, "apps", "launcher.py")])
             except OSError:
                 pass
         try:
@@ -850,7 +905,7 @@ class LtXApp(tk.Tk):
 
 
 def main() -> None:
-    app = LtXApp()
+    app = MiniMaxVideoApp()
     app.mainloop()
 
 
