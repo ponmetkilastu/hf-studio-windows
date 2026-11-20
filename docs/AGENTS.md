@@ -35,6 +35,7 @@ Tek endpoint'e istek atarsın, karşılığında dosya (PNG / JPEG / MP4) alırs
 | `POST /kokoro/tts` | Metinden ses (Kokoro TTS) | `text` | WAV |
 | `POST /gemma/chat` | Sohbet (Gemma 4 31B) | `message` | JSON (`content`) |
 | `POST /wan22/i2v` | Fotoğraftan video (Wan 2.2 Fast, 14B + Lightning LoRA) | `image` | MP4 |
+| `POST /flux3/text2image` | Metinden / referanslı görsel (FLUX.3 Image Klein) | `prompt` | PNG |
 
 ---
 
@@ -79,6 +80,12 @@ Dosya alanlarına `UploadFile` (curl `-F`, Python `files=`, JS `FormData.append`
 Wan 2.2 Fast (`/wan22/i2v`) alanları: `image`, `prompt`, `negative_prompt`,
 `steps` (1–30, vars. 6), `duration` (0.5–5 sn, vars. 3.5), `guidance_scale`
 ve `guidance_scale_2` (0–10, vars. 1), `seed` (vars. 42), `randomize` (vars. `true`).
+
+FLUX.3 Image Klein (`/flux3/text2image`) alanları: `prompt` (zorunlu), `image` +
+`ref1`…`ref9` (opsiyonel referanslar, en fazla 10), `mode`
+(`Distilled (16 steps)` / `Base (50 steps)`), `width`/`height` (256–4096, vars. 2048),
+`steps` (1–50, vars. 16), `guidance` (0–10, vars. 1.0), `seed` (vars. 0),
+`randomize` (vars. `true`), `upsampling` (vars. `true`).
 
 ### Görselden 3D (TRELLIS.2)
 
@@ -178,6 +185,7 @@ curl -X POST http://127.0.0.1:8787/minimax-video/i2v \
 | Metinden ses (Kokoro TTS) | `/kokoro/tts` |
 | Sohbet | `/gemma/chat` |
 | Fotoğraftan video (Wan 2.2 Fast) | `/wan22/i2v` |
+| Metinden / referanslı görsel (FLUX.3 Klein) | `/flux3/text2image` |
 
 Belirtilmezse varsayılan olarak `/ph3/text2image` kullan.
 

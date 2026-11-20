@@ -41,6 +41,7 @@ import clients.trellis2_client as trellis2_mod
 import clients.kokoro_client as kokoro_mod
 import clients.gemma31b_client as gemma_mod
 import clients.wan22_client as wan22_mod
+import clients.flux3_client as flux3_mod
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -113,7 +114,7 @@ def root():
             "/minimax-video/i2v", "/ltx/i2v",
             "/minimax-image/text2image", "/zimage/text2image",
             "/ltx09/i2v", "/ltx25/i2v", "/trellis2/image3d",
-            "/kokoro/tts", "/gemma/chat", "/wan22/i2v",
+            "/kokoro/tts", "/gemma/chat", "/wan22/i2v", "/flux3/text2image",
         ],
     }
 
@@ -511,6 +512,42 @@ async def wan22_i2v(
             seed=seed, randomize_seed=randomize,
         )
         return _binary(r.video_bytes, "video/mp4", "wan22.mp4")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _cleanup(tmp)
+
+
+@app.post("/flux3/text2image")
+async def flux3_text2image(
+    prompt: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+    ref1: Optional[UploadFile] = File(None),
+    ref2: Optional[UploadFile] = File(None),
+    ref3: Optional[UploadFile] = File(None),
+    ref4: Optional[UploadFile] = File(None),
+    ref5: Optional[UploadFile] = File(None),
+    ref6: Optional[UploadFile] = File(None),
+    ref7: Optional[UploadFile] = File(None),
+    ref8: Optional[UploadFile] = File(None),
+    ref9: Optional[UploadFile] = File(None),
+    mode: str = Form(flux3_mod.MODE_DISTILLED),
+    width: int = Form(2048), height: int = Form(2048),
+    steps: int = Form(16), guidance: float = Form(1.0),
+    seed: int = Form(0), randomize: bool = Form(True),
+    upsampling: bool = Form(True),
+):
+    tmp: list[str] = []
+    try:
+        tmp = _save_uploads([image, ref1, ref2, ref3, ref4,
+                             ref5, ref6, ref7, ref8, ref9])
+        c = flux3_mod.Flux3Client(proxy_pool=POOL, on_log=_log)
+        r = c.generate(
+            prompt, image_paths=tmp or None, mode=mode,
+            width=width, height=height, steps=steps, guidance_scale=guidance,
+            seed=seed, randomize_seed=randomize, prompt_upsampling=upsampling,
+        )
+        return _binary(r.image_bytes, "image/png", "flux3.png")
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
     finally:

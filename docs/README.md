@@ -1,6 +1,6 @@
-# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS + Gemma 4 31B + LTX-2.5 + TRELLIS.2 + Wan 2.2 Fast)
+# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS + Gemma 4 31B + LTX-2.5 + TRELLIS.2 + Wan 2.2 Fast + FLUX.3 Image Klein)
 
-On üç Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
+On dört Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
 çıkarıldı ve tek bir Windows tkinter uygulamasında toplandı. Açılışta space listesi gelir,
 hangisiyle çalışacağını sen seçersin. Her üretim proxy listesindeki tek bir IP üzerinden gider,
 yeni üretimde sıradaki IP'ye geçer.
@@ -27,6 +27,7 @@ python apps/gemma31b_app.py           :: doğrudan Gemma 4 31B sohbet arayüzü
 python apps/ltx25_app.py              :: doğrudan LTX-2.5 video arayüzü
 python apps/trellis2_app.py           :: doğrudan TRELLIS.2 görselden 3D arayüzü
 python apps/wan22_app.py              :: doğrudan Wan 2.2 Fast fotoğraftan video arayüzü
+python apps/flux3_app.py              :: doğrudan FLUX.3 Image Klein görsel arayüzü
 python core/local_api.py              :: yerel API sunucusu (bkz. docs/AGENTS.md)
 ```
 
@@ -49,6 +50,7 @@ Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
 | `Lightricks/LTX-2.5` | Video | Metinden veya opsiyonel fotoğraftan sesli video. Otomatik boyut, süre, decoder, auto length, prompt geliştirme. |
 | `microsoft/TRELLIS.2` | 3D | Tek görselden dokulu 3D model (GLB). Resolution, seed, decimation, texture ve 3 aşamalı gelişmiş ayarlar. |
 | `zerogpu-aoti/wan2-2-fp8da-aoti-faster` | Video | 14B + Lightning LoRA ile 4-8 adımda fotoğraftan video (i2v). Steps, süre, iki guidance, seed, negatif prompt. |
+| `black-forest-labs/flux-3-image-klein` | Görsel | Metinden veya en fazla 10 referans görselle üretim. Distilled (16 step) / Base (50 step), oran, çözünürlük, steps, guidance, seed. |
 
 Liste `spaces.json` dosyasından okunur. Yeni bir space eklemek için istemci + arayüz modülünü
 yazıp buraya bir kayıt eklemek yeterli (`modul` alanı `main()` içeren Python dosyası).
@@ -169,6 +171,20 @@ seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
 
 > HAR'da görülen `upload_progress` SSE'si yalnızca yükleme ilerlemesidir, istemcide atlanır.
 
+## Kullanım — Görsel üretimi (FLUX.3 Image Klein)
+
+1. Prompt yaz. İstersen **Referans görseller** bölümünden en fazla 10 görsel ekle
+   (metinden üretim için gerekmez).
+2. **Model** (Distilled 16 step / Base 50 step), **Oran** (1:1 … 9:16) ve
+   **Çözünürlük** (1K/2K/4K) seç; **↳ oran/çözünürlükten boyut** ile genişlik/yüksekliği doldur.
+3. Steps (1–50), Guidance (0–10), seed / **rastgele seed** ve **prompt upsampling** ayarlarını yap.
+4. **▶ GÖRSEL ÜRET**. Tek `/generate` çağrısıyla görsel üretilir (20–90 sn).
+5. Sonuç `outputs\flux3_<tarih>.png` olarak kaydedilir; **Aç** varsayılan uygulamada açar.
+
+> HAR'da görülen `describe_result` (fn 34), `boxes_toggle` (fn 32), `use_as_reference` (fn 30),
+> `sync_references` (fn 25) ve `/component_server/get_app_version` istekleri yalnızca UI içindir,
+> istemcide atlanır.
+
 ## Kullanım — Metinden ses (Kokoro TTS)
 
 1. Metin yaz (~500 karakter sınırı; Generate modu).
@@ -229,7 +245,7 @@ DB içeriğini görmek için: `python scripts/db_bilgi.py` · testler: `python s
 
 ```
 hugginface/
-├─ apps/          tkinter arayüzleri (launcher + 13 space)
+├─ apps/          tkinter arayüzleri (launcher + 14 space)
 ├─ clients/       HF API istemcileri (ortak transport/proxy katmanı hf_image_client'da)
 ├─ core/          altyapı: proxy_db.py, local_api.py (yerel HTTP API)
 ├─ config/        spaces.json + settings*.json (otomatik, git'e girmez)
@@ -247,9 +263,9 @@ hugginface/
 | Klasör / dosya | Görev |
 |---|---|
 | `apps/launcher.py` | Açılışta space seçim ekranı (ızgara kartlar, tek tık) |
-| `apps/*_app.py` | On üç space'in tkinter arayüzü |
+| `apps/*_app.py` | On dört space'in tkinter arayüzü |
 | `clients/hf_image_client.py` | Ortak transport / ProxyPool / RotatingTransport + MiniMax H3 Image |
-| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, LTX-2.5, TRELLIS.2, Kokoro, Gemma, Wan 2.2 istemcileri |
+| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, LTX-2.5, TRELLIS.2, Kokoro, Gemma, Wan 2.2, FLUX.3 istemcileri |
 | `core/proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`, FIFO/LRU) |
 | `core/local_api.py` | Yerel FastAPI sunucusu — agent'lar için (bkz. `docs/AGENTS.md`) |
 | `config/spaces.json` | Space kayıtları (ad, host, modül, açıklama) |
@@ -544,6 +560,37 @@ Space: `zerogpu-aoti/wan2-2-fp8da-aoti-faster`
 - `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesidir, atlanır.
 - `x-zerogpu-*` / cookie / `Authorization` başlıkları yalnızca HAR kaydında görünür;
   istemci bunları **göndermez** (bkz. `REVERSE.md`).
+
+## Teknik özet — FLUX.3 Image Klein (`huggingface.co.flux3.klein.har`)
+
+Host: `https://black-forest-labs-flux-3-image-klein.hf.space` · Gradio 6.30.0
+Space: `black-forest-labs/flux-3-image-klein`
+
+0. (Referans görsel varsa) `POST /gradio_api/upload?upload_id=<id>` — multipart, alan `files`
+   → `["/tmp/gradio/<hash>/<ad>"]` → gallery öğeleri `[{"image": FileData, "caption": null}]`
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 33` (`/generate`),
+   `trigger_id: 31` (Generate butonu), 10 elemanlı `data` → `{"event_id": "..."}`:
+   `[prompt, gallery, mode, seed, randomize_seed, width, height,
+   num_inference_steps, guidance_scale, prompt_upsampling]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed`
+   (`output.data = [Image(FileData), seed, prompt_the_model_saw]`)
+3. `GET /gradio_api/file=/tmp/gradio/<hash>/image.png` → PNG
+
+**Parametre notları:**
+
+- HAR'da `/config` ve `/info` yoktu; şema space'in canlı `/gradio_api/info` (`/generate`)
+  ve `/config` endpoint'lerinden okundu. `inputs [23,27,28,35,36,39,40,43,44,33]`,
+  `outputs [50,35,57]`, `trigger_id 31` birebir eşleşiyor.
+- HAR'daki gerçek dizi: `[prompt, [], "Distilled (16 steps)", 0, true, 2048, 2048, 16, 1, true]`.
+- Model: `Distilled (16 steps)` veya `Base (50 steps)`; oran 1:1/4:3/3:4/3:2/2:3/16:9/9:16;
+  çözünürlük 1K/2K/4K → space tarafında width/height'e çevrilir (1K=1024, 2K=2048, 4K=4096).
+- Width/height 256–4096 (adım 16), steps 1–50, guidance 0–10, seed 0–2147483647 + randomize.
+- Referans galerisi en fazla 10 görsel; öğe biçimi `{"image": FileData, "caption": null}`.
+- Atlanan UI-only çağrılar: fn 34 `/describe_result` (`[seed, mode, width, height]`),
+  fn 32 `/boxes_toggle`, fn 30 `/use_as_reference`, fn 25 `/sync_references`,
+  fn 27/28 `/set_aspect`, fn 29 `/update_steps_from_mode` ve
+  `POST /gradio_api/component_server` (`get_app_version`).
+- `x-zerogpu-*` / cookie / `Authorization` yalnızca HAR kaydında görünür; istemci **göndermez**.
 
 ## Teknik özet — Kokoro TTS (`huggingface.co.kokoro.tts.fast.har`)
 

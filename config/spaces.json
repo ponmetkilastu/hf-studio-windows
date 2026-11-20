@@ -116,6 +116,15 @@
       "host": "zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space",
       "modul": "apps.wan22_app",
       "aciklama": "14B + Lightning LoRA ile 4-8 adımda fotoğraftan video üretir (/generate_video). Steps, süre (0.5-5 sn), iki guidance, seed ve negatif prompt ayarları."
+    },
+    {
+      "id": "flux-3-klein",
+      "ad": "FLUX.3 Image Klein · Görsel",
+      "tur": "Görsel üretimi / düzenleme",
+      "space": "black-forest-labs/flux-3-image-klein",
+      "host": "black-forest-labs-flux-3-image-klein.hf.space",
+      "modul": "apps.flux3_app",
+      "aciklama": "Metinden veya en fazla 10 referans görselle görsel üretir (/generate). Distilled/Base model, oran, çözünürlük, genişlik/yükseklik, steps, guidance, seed ve prompt upsampling ayarları."
     }
   ]
 }
