@@ -36,7 +36,11 @@ import clients.ph3_client as ph3_mod
 import clients.qwen_client as qwen_mod
 import clients.zimage_client as zimage_mod
 import clients.ltx09_client as ltx09_mod
+import clients.ltx25_client as ltx25_mod
+import clients.trellis2_client as trellis2_mod
 import clients.kokoro_client as kokoro_mod
+import clients.gemma31b_client as gemma_mod
+import clients.wan22_client as wan22_mod
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -108,7 +112,8 @@ def root():
             "/qwen/text2image", "/qwen/img2img",
             "/minimax-video/i2v", "/ltx/i2v",
             "/minimax-image/text2image", "/zimage/text2image",
-            "/ltx09/i2v", "/kokoro/tts",
+            "/ltx09/i2v", "/ltx25/i2v", "/trellis2/image3d",
+            "/kokoro/tts", "/gemma/chat", "/wan22/i2v",
         ],
     }
 
@@ -400,6 +405,118 @@ async def ltx09_i2v(
         _cleanup(tmp)
 
 
+@app.post("/ltx25/i2v")
+async def ltx25_i2v(
+    image: Optional[UploadFile] = File(None),
+    prompt: str = Form(ltx25_mod.DEFAULT_PROMPT),
+    width: int = Form(ltx25_mod.DEFAULT_WIDTH),
+    height: int = Form(ltx25_mod.DEFAULT_HEIGHT),
+    duration: float = Form(ltx25_mod.DEFAULT_DURATION),
+    seed: int = Form(ltx25_mod.DEFAULT_SEED),
+    decoder: str = Form(ltx25_mod.DEFAULT_DECODER),
+    auto_len: bool = Form(False),
+    randomize: bool = Form(True),
+    do_enhance: bool = Form(True),
+):
+    tmp: list[str] = []
+    try:
+        tmp = _save_uploads([image])
+        c = ltx25_mod.LTX25Client(proxy_pool=POOL, on_log=_log)
+        r = c.generate(
+            tmp[0] if tmp else None, prompt,
+            width=width, height=height, duration=duration, seed=seed,
+            decoder=decoder, auto_len=auto_len, randomize_seed=randomize,
+            do_enhance=do_enhance,
+        )
+        return _binary(r.video_bytes, "video/mp4", "ltx25.mp4")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _cleanup(tmp)
+
+
+@app.post("/trellis2/image3d")
+async def trellis2_image3d(
+    image: UploadFile = File(...),
+    resolution: str = Form(trellis2_mod.DEFAULT_RESOLUTION),
+    seed: int = Form(0),
+    randomize: bool = Form(True),
+    decimation_target: int = Form(trellis2_mod.DECIMATION_DEFAULT),
+    texture_size: int = Form(trellis2_mod.TEXTURE_DEFAULT),
+    ss_guidance_strength: float = Form(trellis2_mod.STAGE_DEFAULTS["ss_guidance_strength"]),
+    ss_guidance_rescale: float = Form(trellis2_mod.STAGE_DEFAULTS["ss_guidance_rescale"]),
+    ss_sampling_steps: int = Form(trellis2_mod.STAGE_DEFAULTS["ss_sampling_steps"]),
+    ss_rescale_t: float = Form(trellis2_mod.STAGE_DEFAULTS["ss_rescale_t"]),
+    shape_slat_guidance_strength: float = Form(trellis2_mod.STAGE_DEFAULTS["shape_slat_guidance_strength"]),
+    shape_slat_guidance_rescale: float = Form(trellis2_mod.STAGE_DEFAULTS["shape_slat_guidance_rescale"]),
+    shape_slat_sampling_steps: int = Form(trellis2_mod.STAGE_DEFAULTS["shape_slat_sampling_steps"]),
+    shape_slat_rescale_t: float = Form(trellis2_mod.STAGE_DEFAULTS["shape_slat_rescale_t"]),
+    tex_slat_guidance_strength: float = Form(trellis2_mod.STAGE_DEFAULTS["tex_slat_guidance_strength"]),
+    tex_slat_guidance_rescale: float = Form(trellis2_mod.STAGE_DEFAULTS["tex_slat_guidance_rescale"]),
+    tex_slat_sampling_steps: int = Form(trellis2_mod.STAGE_DEFAULTS["tex_slat_sampling_steps"]),
+    tex_slat_rescale_t: float = Form(trellis2_mod.STAGE_DEFAULTS["tex_slat_rescale_t"]),
+):
+    tmp: list[str] = []
+    try:
+        tmp = _save_uploads([image])
+        if not tmp:
+            return JSONResponse({"ok": False, "error": "image gerekli"}, status_code=400)
+        c = trellis2_mod.Trellis2Client(proxy_pool=POOL, on_log=_log)
+        r = c.generate(
+            tmp[0], resolution=resolution, seed=seed,
+            randomize_seed=randomize,
+            decimation_target=decimation_target, texture_size=texture_size,
+            ss_guidance_strength=ss_guidance_strength,
+            ss_guidance_rescale=ss_guidance_rescale,
+            ss_sampling_steps=ss_sampling_steps,
+            ss_rescale_t=ss_rescale_t,
+            shape_slat_guidance_strength=shape_slat_guidance_strength,
+            shape_slat_guidance_rescale=shape_slat_guidance_rescale,
+            shape_slat_sampling_steps=shape_slat_sampling_steps,
+            shape_slat_rescale_t=shape_slat_rescale_t,
+            tex_slat_guidance_strength=tex_slat_guidance_strength,
+            tex_slat_guidance_rescale=tex_slat_guidance_rescale,
+            tex_slat_sampling_steps=tex_slat_sampling_steps,
+            tex_slat_rescale_t=tex_slat_rescale_t,
+        )
+        return _binary(r.glb_bytes, "model/gltf-binary", "trellis2.glb")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _cleanup(tmp)
+
+
+@app.post("/wan22/i2v")
+async def wan22_i2v(
+    image: UploadFile = File(...),
+    prompt: str = Form(wan22_mod.DEFAULT_PROMPT),
+    negative_prompt: str = Form(wan22_mod.DEFAULT_NEGATIVE),
+    steps: int = Form(wan22_mod.STEPS_DEFAULT),
+    duration: float = Form(wan22_mod.DURATION_DEFAULT),
+    guidance_scale: float = Form(wan22_mod.GUIDANCE_DEFAULT),
+    guidance_scale_2: float = Form(wan22_mod.GUIDANCE_DEFAULT),
+    seed: int = Form(wan22_mod.SEED_DEFAULT),
+    randomize: bool = Form(True),
+):
+    tmp: list[str] = []
+    try:
+        tmp = _save_uploads([image])
+        if not tmp:
+            return JSONResponse({"ok": False, "error": "image gerekli"}, status_code=400)
+        c = wan22_mod.Wan22Client(proxy_pool=POOL, on_log=_log)
+        r = c.generate(
+            tmp[0], prompt, negative_prompt,
+            steps=steps, duration=duration,
+            guidance_scale=guidance_scale, guidance_scale_2=guidance_scale_2,
+            seed=seed, randomize_seed=randomize,
+        )
+        return _binary(r.video_bytes, "video/mp4", "wan22.mp4")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _cleanup(tmp)
+
+
 @app.post("/kokoro/tts")
 async def kokoro_tts(
     text: str = Form(...),
@@ -411,6 +528,36 @@ async def kokoro_tts(
         c = kokoro_mod.KokoroClient(proxy_pool=POOL, on_log=_log)
         r = c.generate(text, voice=voice, speed=speed, hardware=hardware)
         return _binary(r.audio_bytes, "audio/wav", "kokoro.wav")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/gemma/chat")
+async def gemma_chat(
+    message: str = Form(...),
+    system: str = Form(gemma_mod.DEFAULT_SYSTEM),
+    max_new_tokens: int = Form(gemma_mod.DEFAULT_MAX_TOKENS),
+    temperature: float = Form(gemma_mod.DEFAULT_TEMPERATURE),
+    top_p: float = Form(gemma_mod.DEFAULT_TOP_P),
+    top_k: int = Form(gemma_mod.DEFAULT_TOP_K),
+    repetition_penalty: float = Form(gemma_mod.DEFAULT_REPETITION),
+    thinking: bool = Form(False),
+):
+    try:
+        c = gemma_mod.Gemma31BClient(proxy_pool=POOL, on_log=_log)
+        r = c.chat(
+            message, system_prompt=system, max_new_tokens=max_new_tokens,
+            temperature=temperature, top_p=top_p, top_k=top_k,
+            repetition_penalty=repetition_penalty, thinking=thinking,
+        )
+        if r.error:
+            return JSONResponse({"ok": False, "error": r.error}, status_code=500)
+        return {
+            "ok": True,
+            "content": r.content,
+            "reasoning": r.reasoning,
+            "elapsed": r.elapsed,
+        }
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 

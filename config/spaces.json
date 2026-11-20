@@ -80,6 +80,42 @@
       "host": "hexgrad-kokoro-tts.hf.space",
       "modul": "apps.kokoro_app",
       "aciklama": "Metinden doğal ses üretir. 28 ses, hız (0.5-2.0) ve ZeroGPU/CPU seçimi."
+    },
+    {
+      "id": "gemma-4-31b",
+      "ad": "Gemma 4 31B · Sohbet",
+      "tur": "Sohbet",
+      "space": "mxderncultxre/Gemma4-31b-uncensored-assistant",
+      "host": "mxderncultxre-gemma4-31b-uncensored-assistant.hf.space",
+      "modul": "apps.gemma31b_app",
+      "aciklama": "Gemma 4 31B sohbet. Sistem promptu, sıcaklık, top-p/top-k, tekrar cezası ve konuşma geçmişi."
+    },
+    {
+      "id": "ltx-2-5",
+      "ad": "LTX-2.5 · Video",
+      "tur": "Metinden / fotoğraftan video",
+      "space": "Lightricks/LTX-2.5",
+      "host": "lightricks-ltx-2-5.hf.space",
+      "modul": "apps.ltx25_app",
+      "aciklama": "Metinden veya opsiyonel fotoğraftan sesli video üretir (/run). Görsele göre otomatik boyut, süre, decoder, auto length, seed ve prompt geliştirme."
+    },
+    {
+      "id": "trellis-2",
+      "ad": "TRELLIS.2 · Görselden 3D",
+      "tur": "Görselden 3D model",
+      "space": "microsoft/TRELLIS.2",
+      "host": "microsoft-trellis-2.hf.space",
+      "modul": "apps.trellis2_app",
+      "aciklama": "Tek görselden dokulu 3D model (GLB) üretir. Resolution 512/1024/1536, seed, decimation, texture ve 3 aşamalı gelişmiş ayarlar."
+    },
+    {
+      "id": "wan-2-2",
+      "ad": "Wan 2.2 Fast · Fotoğraftan video",
+      "tur": "Fotoğraftan video",
+      "space": "zerogpu-aoti/wan2-2-fp8da-aoti-faster",
+      "host": "zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space",
+      "modul": "apps.wan22_app",
+      "aciklama": "14B + Lightning LoRA ile 4-8 adımda fotoğraftan video üretir (/generate_video). Steps, süre (0.5-5 sn), iki guidance, seed ve negatif prompt ayarları."
     }
   ]
 }

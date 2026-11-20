@@ -1,6 +1,6 @@
-# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS)
+# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS + Gemma 4 31B + LTX-2.5 + TRELLIS.2 + Wan 2.2 Fast)
 
-Dokuz Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
+On üç Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
 çıkarıldı ve tek bir Windows tkinter uygulamasında toplandı. Açılışta space listesi gelir,
 hangisiyle çalışacağını sen seçersin. Her üretim proxy listesindeki tek bir IP üzerinden gider,
 yeni üretimde sıradaki IP'ye geçer.
@@ -23,6 +23,10 @@ python apps/ph3_app.py                :: doğrudan P-H3 görsel arayüzü
 python apps/zimage_app.py             :: doğrudan Z-Image Turbo görsel arayüzü
 python apps/ltx09_app.py              :: doğrudan LTX-Video Distilled arayüzü
 python apps/kokoro_app.py             :: doğrudan Kokoro TTS arayüzü
+python apps/gemma31b_app.py           :: doğrudan Gemma 4 31B sohbet arayüzü
+python apps/ltx25_app.py              :: doğrudan LTX-2.5 video arayüzü
+python apps/trellis2_app.py           :: doğrudan TRELLIS.2 görselden 3D arayüzü
+python apps/wan22_app.py              :: doğrudan Wan 2.2 Fast fotoğraftan video arayüzü
 python core/local_api.py              :: yerel API sunucusu (bkz. docs/AGENTS.md)
 ```
 
@@ -41,6 +45,10 @@ Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
 | `mrfakename/Z-Image-Turbo` | Görsel | Metinden hızlı görsel. Genişlik/yükseklik, adım, seed. |
 | `Lightricks/ltx-video-distilled` | Video | Fotoğraftan video (i2v). Otomatik boyut, süre, frame, guidance. |
 | `hexgrad/Kokoro-TTS` | Ses | Metinden ses. 28 ses, hız ve ZeroGPU/CPU seçimi. |
+| `mxderncultxre/Gemma4-31b-uncensored-assistant` | Sohbet | Gemma 4 31B sohbet. Sistem promptu, örnekleme parametreleri, geçmiş. |
+| `Lightricks/LTX-2.5` | Video | Metinden veya opsiyonel fotoğraftan sesli video. Otomatik boyut, süre, decoder, auto length, prompt geliştirme. |
+| `microsoft/TRELLIS.2` | 3D | Tek görselden dokulu 3D model (GLB). Resolution, seed, decimation, texture ve 3 aşamalı gelişmiş ayarlar. |
+| `zerogpu-aoti/wan2-2-fp8da-aoti-faster` | Video | 14B + Lightning LoRA ile 4-8 adımda fotoğraftan video (i2v). Steps, süre, iki guidance, seed, negatif prompt. |
 
 Liste `spaces.json` dosyasından okunur. Yeni bir space eklemek için istemci + arayüz modülünü
 yazıp buraya bir kayıt eklemek yeterli (`modul` alanı `main()` içeren Python dosyası).
@@ -122,12 +130,62 @@ seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
 
 > HAR'da görülen upload_progress SSE'si yalnızca yükleme ilerlemesidir, istemcide atlanır.
 
+## Kullanım — Video (LTX-2.5)
+
+1. Kaynak fotoğraf **opsiyonel**: **Seç** ile yükle, **Kaldır** ile temizle. Fotoğraf yoksa
+   metinden video (t2v), varsa fotoğraftan video (i2v) üretilir.
+2. Prompt yaz. **Prompt geliştir (Gemma-4)** açıkken sunucu prompt'u LTX-2.5 tarzına çevirir;
+   üretilen prompt günlükte görünür.
+3. Genişlik/yükseklik (512–1536), süre (1–5 sn), seed, **decoder** (`conv` hızlı / `diffusion`
+   daha kaliteli) ve **auto length** (model ≤15 sn seçer) ayarlarını yap.
+4. **▶ VİDEO ÜRET**. Fotoğraf varsa önce görsel oranına göre boyutlar hesaplanır, sonra video
+   üretilir (1–5 dk).
+5. Sonuç `outputs\ltx25_<tarih>.mp4` olarak kaydedilir; **Oynat** varsayılan oynatıcıda açar.
+
+> HAR'da görülen `upload_progress` SSE'si yalnızca yükleme ilerlemesidir, istemcide atlanır.
+
+## Kullanım — Görselden 3D (TRELLIS.2)
+
+1. **Seç** ile tek bir görsel yükle. (Ön planı alpha ile maskelenmiş görseller daha iyi sonuç verir.)
+2. **Resolution** (512/1024/1536), **seed** / **rastgele seed**, **decimation** (100k–500k) ve
+   **texture** (1024–4096) ayarlarını yap.
+3. **⚙ Gelişmiş…** ile 3 aşamanın (sparse structure / shape / material) guidance, rescale,
+   sampling steps ve rescale T değerlerini düzenleyebilirsin.
+4. **▶ 3D ÜRET**. Sırasıyla görsel ön işlenir, seed belirlenir, 3D model üretilir ve GLB çıkarılır
+   (1–3 dk + GLB çıkarma).
+5. Sonuç `outputs\trellis2_<tarih>.glb` olarak kaydedilir; **Aç** dosyayı varsayılan uygulamada
+   açar (Blender / Windows 3D Viewer).
+
+> HAR'da görülen `upload_progress` SSE'si ve walkthrough (`fn 6 /lambda`) adımı istemcide atlanır.
+
+## Kullanım — Fotoğraftan video (Wan 2.2 Fast)
+
+1. **Seç** ile kaynak fotoğrafı yükle.
+2. Prompt (hareket tarifi) ve istersen negatif prompt yaz.
+3. **Steps** (1–30, vars. 6), **Süre** (0.5–5 sn, vars. 3.5), iki **guidance** (0–10)
+   ve seed / **rastgele seed** ayarlarını yap.
+4. **▶ VİDEO ÜRET**. Tek `/generate_video` çağrısıyla video üretilir (30–120 sn).
+5. Sonuç `outputs\wan22_<tarih>.mp4` olarak kaydedilir; **Oynat** varsayılan oynatıcıda açar.
+
+> HAR'da görülen `upload_progress` SSE'si yalnızca yükleme ilerlemesidir, istemcide atlanır.
+
 ## Kullanım — Metinden ses (Kokoro TTS)
 
 1. Metin yaz (~500 karakter sınırı; Generate modu).
 2. **Ses** listesinden bir ses seç (28 seçenek, varsayılan `af_heart`).
 3. **Hız** (0.5–2.0) ve **ZeroGPU / CPU** seçimini yap.
 4. **▶ SES ÜRET**. Sonuç `outputs\kokoro_<tarih>.wav` olarak kaydedilir; **Oynat** varsayılan oynatıcıda açar.
+
+## Kullanım — Sohbet (Gemma 4 31B)
+
+1. Sol panelde sistem promptu ve örnekleme ayarlarını (max token, temperature,
+   top-p/top-k, repetition) düzenle.
+2. Sağdaki mesaj kutusuna yaz ve **Gönder** (veya Enter).
+3. Konuşma geçmişi oturum boyunca korunur; her yeni mesajda space'e gönderilir.
+4. **🔄 Yeni konuşma** geçmişi ve oturumu sıfırlar; **💾 Konuşmayı kaydet** JSON olarak yazar.
+
+> HAR'da ikinci mesaj ZeroGPU kota hatası almıştır. İstemci oturum başlığı
+> göndermediği için bu hata oluşursa arayüzde açıkça gösterilir.
 
 ## Seed (tüm space'ler)
 
@@ -171,7 +229,7 @@ DB içeriğini görmek için: `python scripts/db_bilgi.py` · testler: `python s
 
 ```
 hugginface/
-├─ apps/          tkinter arayüzleri (launcher + 9 space)
+├─ apps/          tkinter arayüzleri (launcher + 13 space)
 ├─ clients/       HF API istemcileri (ortak transport/proxy katmanı hf_image_client'da)
 ├─ core/          altyapı: proxy_db.py, local_api.py (yerel HTTP API)
 ├─ config/        spaces.json + settings*.json (otomatik, git'e girmez)
@@ -189,9 +247,9 @@ hugginface/
 | Klasör / dosya | Görev |
 |---|---|
 | `apps/launcher.py` | Açılışta space seçim ekranı (ızgara kartlar, tek tık) |
-| `apps/*_app.py` | Dokuz space'in tkinter arayüzü |
+| `apps/*_app.py` | On üç space'in tkinter arayüzü |
 | `clients/hf_image_client.py` | Ortak transport / ProxyPool / RotatingTransport + MiniMax H3 Image |
-| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, Kokoro istemcileri |
+| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, LTX-2.5, TRELLIS.2, Kokoro, Gemma, Wan 2.2 istemcileri |
 | `core/proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`, FIFO/LRU) |
 | `core/local_api.py` | Yerel FastAPI sunucusu — agent'lar için (bkz. `docs/AGENTS.md`) |
 | `config/spaces.json` | Space kayıtları (ad, host, modül, açıklama) |
@@ -385,6 +443,108 @@ Host: `https://lightricks-ltx-video-distilled.hf.space` · Gradio 5.42.0
 - `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesi içindir, atlanır.
 - Join isteklerinde `x-zerogpu-*` görünür; **gönderilmez** (bkz. `REVERSE.md`).
 
+## Teknik özet — LTX-2.5 (`huggingface.co.ltx2.5.har`)
+
+Host: `https://lightricks-ltx-2-5.hf.space` · Gradio 6.13.0
+
+1. (opsiyonel görsel) `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files`
+   → `["/tmp/gradio/<hash>/krea_....png"]`
+2. `POST /gradio_api/queue/join?__theme=system` — `fn_index: 0`
+   (`/set_dims_from_image`), `trigger_id: 4`, 1 eleman: `[FileData]`
+   → SSE `output.data = [height, width]`
+3. `POST /gradio_api/queue/join?__theme=system` — `fn_index: 2` (`/run`),
+   `trigger_id: 22`, 10 eleman:
+   `[prompt, image, height, width, duration_s, seed, decoder, auto_len,
+   randomize_seed, do_enhance]` → SSE `process_completed`
+   `output.data = [video FileData, prompt_sent, seed_used, length]`
+4. `GET /gradio_api/file=/tmp/gradio/<hash>/tmp*.mp4` → MP4
+
+**Parametre notları:**
+
+- 10 parametrenin sırası `/gradio_api/info` ve `/config` `inputs`
+  (`[5,4,9,8,11,16,14,12,17,19]`) ile doğrulandı.
+- Görsel opsiyoneldir (`Input image (optional → image-to-video)`); verilmezse fn 0 atlanır ve
+  doğrudan metinden video üretilir.
+- Aralıklar: height/width 512–1536 (64 adım), duration 1–5 sn (0.5 adım), seed 0–2147483647;
+  varsayılanlar 832×1472, 2 sn, seed 42, decoder `conv`, randomize true, enhance true.
+- `auto_len` açıkken sunucu süreyi prompt'tan seçer (≤15 sn) ve slider'ı geçersiz kılar.
+- Video çıktısı seslidir; HAR'da `video/mp4` olarak indirilmiştir.
+- Join gövdesinde `event_data` yoktur; `data` + `fn_index` + `trigger_id` + `session_hash` gider.
+- `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesi içindir, atlanır.
+- Join isteklerinde `x-zerogpu-*` görünür; **gönderilmez** (bkz. `REVERSE.md`).
+
+## Teknik özet — TRELLIS.2 (`huggingface.co.trellis2.har`)
+
+Host: `https://microsoft-trellis-2.hf.space` · Gradio 6.1.0
+
+0. `POST /queue/join` — `fn_index: 2` (`/start_session`), `data: []`
+1. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files`
+   → `["/tmp/gradio/<hash>/qwen_....png"]`
+2. `POST /queue/join` — `fn_index: 4` (`/preprocess_image`), `trigger_id: 4`,
+   `data: [FileData]` → SSE `image.png` (ön işlenmiş FileData)
+3. `POST /queue/join` — `fn_index: 5` (`/get_seed`), `trigger_id: 10`,
+   `data: [randomize_seed, seed]` → SSE `[kullanılan_seed]`
+4. `POST /queue/join` — `fn_index: 7` (`/image_to_3d`), `trigger_id: 10`, 15 eleman:
+   `[image, seed, resolution, ss_guidance_strength, ss_guidance_rescale,
+   ss_sampling_steps, ss_rescale_t, shape_slat_* (4), tex_slat_* (4)]`
+   → SSE `[state, html önizleme]`
+5. `POST /queue/join` — `fn_index: 9` (`/extract_glb`), `trigger_id: 38`,
+   `data: [null, decimation_target, texture_size]` → SSE `[Model3D, DownloadButton]`
+   (ilk `null`, `gr.State` input 45 için yer tutucudur; gerçek latent sözlüğü
+   istemciye gönderilmez, sunucu `session_hash` ile saklar)
+6. `GET /gradio_api/file=/tmp/gradio/<hash>/*.glb` → GLB
+
+**Parametre notları:**
+
+- 15 parametrenin sırası `/gradio_api/info` ve `/config` `inputs`
+  (`[4,6,5,14,15,16,17,21,22,23,24,28,29,30,31]`) ile doğrulandı.
+- `trigger_id`, olayı başlatan bileşenin id'sidir (Image 4, Generate 10, Extract GLB 38);
+  Gradio JS'te `.then` zinciri bu değeri devralır. `start_session` için `null`.
+- State bileşeni 45 (`image_to_3d` çıktısı) istemciye gönderilmez; `extract_glb` aynı
+  `session_hash` ile çalıştığı için sunucu state'i kendisi kullanır. Doğrulandı:
+  aynı `session_hash` korunduğunda proxy değişse bile state bulunuyor.
+- Resolution 512/1024/1536 (varsayılan 1024); decimation 100k–500k (adım 10k);
+  texture 1024–4096 (adım 1024); seed 0–2147483647, varsayılan 0 + randomize true.
+- 3 aşama varsayılanları: S1 `7.5 / 0.7 / 12 / 5.0`, S2 `7.5 / 0.5 / 12 / 3.0`,
+  S3 `1.0 / 0.0 / 12 / 3.0` (guidance / rescale / steps / rescale T).
+- `fn 6 /lambda` yalnızca walkthrough adımıdır; üretime etkisi yoktur, atlanır.
+- `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesi içindir, atlanır.
+- Her üretim iki ZeroGPU çağrısı kullanır (`image_to_3d` + `extract_glb`, 120 sn).
+  Anonim kota IP başına sınırlıdır; istemci `ZeroGPU quota` hatasında proxy'yi
+  değiştirip otomatik tekrar dener (state `session_hash` ile korunur).
+- `x-zerogpu-uuid` / `x-zerogpu-token` başlıkları yalnızca HAR kaydında görünür;
+  istemci bunları, cookie'leri ve `Authorization`'ı **göndermez** (bkz. `REVERSE.md`).
+
+## Teknik özet — Wan 2.2 Fast (`huggingface.co.wan22.aoti.fast..har`)
+
+Host: `https://zerogpu-aoti-wan2-2-fp8da-aoti-faster.hf.space` · Gradio 6.1.0
+Space: `zerogpu-aoti/wan2-2-fp8da-aoti-faster`
+
+0. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan adı `files`
+   → `["/tmp/gradio/<hash>/qwen_....png"]`
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 0` (`/generate_video`),
+   `trigger_id: 16` (Generate butonu, id 16), 9 elemanlı `data` → `{"event_id": "..."}`:
+   `[image, prompt, steps, negative_prompt, duration_seconds, guidance_scale,
+   guidance_scale_2, seed, randomize_seed]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed`
+   (`output.data[0]` = video FileData, `data[1]` = kullanılan seed)
+3. `GET /gradio_api/file=/tmp/gradio/<hash>/tmp*.mp4` → MP4 (ranged isteklerle indirilir)
+
+**Parametre notları:**
+
+- 9 parametrenin sırası `/config` `inputs [5, 6, 12, 9, 7, 13, 14, 10, 11]` ve
+  `/gradio_api/info` (`named_endpoints./generate_video.parameters`) ile doğrulandı.
+- Return şeması: `[Video ("Generated Video"), Slider ("Seed")]`.
+- HAR'daki gerçek dizi, negatif prompt dışında varsayılan değerleri kullanır; prompt
+  İngilizcedir, negatif prompt Çincedir (space'in varsayılanı korunur).
+- Steps 1–30 (vars. 6), duration 0.5–5 sn (vars. 3.5), guidance 0–10 (vars. 1),
+  seed 0–2147483647 (vars. 42) + randomize `true`.
+- `trigger_id`, olayı başlatan Generate bileşeninin id'sidir (16). Join gövdesinde
+  `event_data` alanı yoktur.
+- `GET /gradio_api/upload_progress` yalnızca yükleme ilerlemesidir, atlanır.
+- `x-zerogpu-*` / cookie / `Authorization` başlıkları yalnızca HAR kaydında görünür;
+  istemci bunları **göndermez** (bkz. `REVERSE.md`).
+
 ## Teknik özet — Kokoro TTS (`huggingface.co.kokoro.tts.fast.har`)
 
 Host: `https://hexgrad-kokoro-tts.hf.space` · Gradio 5.24.0
@@ -405,3 +565,26 @@ Host: `https://hexgrad-kokoro-tts.hf.space` · Gradio 5.24.0
 - Speed 0.5–2.0 (adım 0.1); hardware `true` = ZeroGPU, `false` = CPU.
 - Text alanı üst sınırı ~500 karakter (Stream modu 5000, bu HAR'da kullanılmadı).
 - Upload isteği yoktur. `x-zerogpu-*` / cookie / `Authorization` gönderilmez.
+
+## Teknik özet — Gemma 4 31B (`huggingface.co.gemma31b.fast.har`)
+
+Host: `https://mxderncultxre-gemma4-31b-uncensored-assistant.hf.space` · Gradio 6.16.0
+
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 0` (`/chat`),
+   11 elemanlı `data` → `{"event_id": "..."}`:
+   `[text, files, history, thinking, max_new_tokens, image_token_budget,
+   system_prompt, temperature, top_p, top_k, repetition_penalty]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed`
+   (`output.data[0] = {"reasoning": ..., "content": ..., "error": ...}`)
+
+**Parametre notları:**
+
+- HAR'daki ilk dizi: `["merhaba", [], [], false, 1040, 560, "<system>", 0.7, 0.9, 40, 1]`.
+- İkinci join aynı `session_hash` ile geçmişi gönderir:
+  `[{"role":"user","text":"merhaba","files":[]}, {"role":"assistant","text":"…","files":[]}]`.
+- `/info` 11 parametreyi ve varsayılanları verir; `/config` `inputs`
+  `[1..11] → output [12]` eşleşmesini doğrular.
+- **Join gövdesinde `event_data` veya `trigger_id` alanı yoktur** (bu space'in
+  Gradio 6.16 sürümüne özgüdür); istemci gövdeyi tam olarak bu biçimde üretir.
+- Dosya indirme isteği yoktur; cevap SSE içindedir. `x-zerogpu-*` / `x-gradio-user`
+  görünür ama **gönderilmez** (bkz. `REVERSE.md`).

@@ -62,7 +62,10 @@
     <option value="/minimax-image/text2image">minimax-image · metinden görsel</option>
     <option value="/zimage/text2image">zimage · metinden görsel</option>
     <option value="/ltx09/i2v">ltx09 · fotoğraftan video</option>
+    <option value="/ltx25/i2v">ltx25 · metinden / fotoğraftan video</option>
+    <option value="/trellis2/image3d">trellis2 · görselden 3D (GLB)</option>
     <option value="/kokoro/tts">kokoro · metinden ses</option>
+    <option value="/wan22/i2v">wan22 · fotoğraftan video (14B + Lightning LoRA)</option>
   </select>
 
   <label>Görsel(ler) — img2img / i2v için</label>
@@ -108,11 +111,12 @@ let picked=[], lastBlob=null, lastName='result.png';
 
 // qwen resolution alanini INTEGER bekler (512/1024/1536); ph3/minimax-image "8 MP" metni bekler.
 function syncFields(){
-  const ep=$('ep').value, isQwen=ep.startsWith('/qwen/');
-  $('resolutionLabel').textContent=isQwen?'Çözünürlük (px: 512/1024/1536)':'Çözünürlük';
+  const ep=$('ep').value, isQwen=ep.startsWith('/qwen/'), isTrellis=ep.startsWith('/trellis2/');
+  $('resolutionLabel').textContent=(isQwen||isTrellis)?'Çözünürlük (px: 512/1024/1536)':'Çözünürlük';
   const v=$('resolution').value.trim();
   if(isQwen && !/^\d+$/.test(v)) $('resolution').value='1024';
-  else if(!isQwen && /^\d+$/.test(v)) $('resolution').value='8 MP';
+  else if(isTrellis && !['512','1024','1536'].includes(v)) $('resolution').value='1024';
+  else if(!isQwen && !isTrellis && /^\d+$/.test(v)) $('resolution').value='8 MP';
 }
 $('ep').addEventListener('change',syncFields);
 syncFields();
@@ -132,11 +136,13 @@ function show(blob,name){
   lastBlob=blob; lastName=name;
   const url=URL.createObjectURL(blob);
   const video=name.endsWith('.mp4')||blob.type.startsWith('video');
-  $('result').style.display=video?'none':'block'; $('result').src=video?'':url;
+  const model3d=name.endsWith('.glb');
+  $('result').style.display=(video||model3d)?'none':'block'; $('result').src=(video||model3d)?'':url;
   $('resultVideo').style.display=video?'block':'none'; $('resultVideo').src=video?url:'';
   $('saveBtn').style.display='inline-block';
   $('meta').textContent=`${name} · ${(blob.size/1024).toFixed(0)} KB`;
   $('out').textContent=JSON.stringify({ok:true,file:name,size:blob.size},null,2);
+  if(model3d) $('out').textContent+='\n\nGLB hazır — İndir ile kaydedip Blender / 3D Viewer ile açın.';
 }
 function save(){
   const a=document.createElement('a');a.href=URL.createObjectURL(lastBlob);a.download=lastName;a.click();
@@ -177,7 +183,8 @@ async function run(){
       throw new Error(`${r.status}: ${msg}`);
     }
     const blob=await r.blob();
-    const ext=isVideo?'mp4':(blob.type.includes('png')?'png':'jpg');
+    const is3d=ep.startsWith('/trellis2/')||blob.type.includes('gltf');
+    const ext=is3d?'glb':(isVideo?'mp4':(blob.type.includes('png')?'png':'jpg'));
     show(blob,`result.${ext}`);
     $('status').textContent=`Tamamlandı ✓ ${((Date.now()-t)/1000).toFixed(1)} sn`;
   }catch(e){ $('status').textContent='Hata: '+e.message; $('out').textContent=e.message; }

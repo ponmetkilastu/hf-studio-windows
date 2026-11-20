@@ -29,6 +29,10 @@ settings_ph3.json
 settings_zimage.json
 settings_ltx09.json
 settings_kokoro.json
+settings_gemma31b.json
+settings_ltx25.json
+settings_trellis2.json
+settings_wan22.json
 
 # -- Python --
 __pycache__/
