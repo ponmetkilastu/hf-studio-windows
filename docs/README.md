@@ -1,6 +1,6 @@
-# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS + Gemma 4 31B + LTX-2.5 + TRELLIS.2 + Wan 2.2 Fast + FLUX.3 Image Klein)
+# HF Studio · Windows (MiniMax H3 Image + LTX-2.3 Video + MiniMax H3 Video + Krea 2 Turbo + Qwen Image 2.1 + P-H3 + Z-Image Turbo + LTX-Video Distilled + Kokoro TTS + Gemma 4 31B + LTX-2.5 + TRELLIS.2 + Wan 2.2 Fast + FLUX.3 Image Klein + Qwen Image Edit 2511)
 
-On dört Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
+On beş Hugging Face Space'inin Gradio istekleri HAR kayıtlarından tersine mühendislikle
 çıkarıldı ve tek bir Windows tkinter uygulamasında toplandı. Açılışta space listesi gelir,
 hangisiyle çalışacağını sen seçersin. Her üretim proxy listesindeki tek bir IP üzerinden gider,
 yeni üretimde sıradaki IP'ye geçer.
@@ -28,6 +28,7 @@ python apps/ltx25_app.py              :: doğrudan LTX-2.5 video arayüzü
 python apps/trellis2_app.py           :: doğrudan TRELLIS.2 görselden 3D arayüzü
 python apps/wan22_app.py              :: doğrudan Wan 2.2 Fast fotoğraftan video arayüzü
 python apps/flux3_app.py              :: doğrudan FLUX.3 Image Klein görsel arayüzü
+python apps/qwen2511_app.py           :: doğrudan Qwen Image Edit 2511 arayüzü
 python core/local_api.py              :: yerel API sunucusu (bkz. docs/AGENTS.md)
 ```
 
@@ -51,6 +52,7 @@ Gerekli paketler zaten kurulu; başka makinede: `pip install requests pillow`.
 | `microsoft/TRELLIS.2` | 3D | Tek görselden dokulu 3D model (GLB). Resolution, seed, decimation, texture ve 3 aşamalı gelişmiş ayarlar. |
 | `zerogpu-aoti/wan2-2-fp8da-aoti-faster` | Video | 14B + Lightning LoRA ile 4-8 adımda fotoğraftan video (i2v). Steps, süre, iki guidance, seed, negatif prompt. |
 | `black-forest-labs/flux-3-image-klein` | Görsel | Metinden veya en fazla 10 referans görselle üretim. Distilled (16 step) / Base (50 step), oran, çözünürlük, steps, guidance, seed. |
+| `aet256/Qwen-Image-Edit-Rapid-AIO-Loras-Experimental` | Görsel | Referanslı düzenleme. Image 1 + opsiyonel Image 2 / ek referanslar, 19 LoRA stili, seed, guidance, steps, hedef MP, VAE ayarları. |
 
 Liste `spaces.json` dosyasından okunur. Yeni bir space eklemek için istemci + arayüz modülünü
 yazıp buraya bir kayıt eklemek yeterli (`modul` alanı `main()` içeren Python dosyası).
@@ -185,6 +187,21 @@ seçtiğin canvas korunur ve video tam o çözünürlükte üretilir.
 > `sync_references` (fn 25) ve `/component_server/get_app_version` istekleri yalnızca UI içindir,
 > istemcide atlanır.
 
+## Kullanım — Görsel düzenleme (Qwen Image Edit 2511)
+
+1. **Image 1** ile düzenlenecek görseli seç (zorunlu). İstersen **Image 2** ve **+** ile ek
+   referanslar ekle.
+2. Düzenleme promptunu yaz (HAR'da `"smile"` kullanılmış). Örn. `put a red bandana on the dog`.
+3. **Stil/LoRA** listesinden bir stil seç (`None` varsayılan); seed / rastgele seed,
+   guidance (1–10) ve steps (1–50) ayarlarını yap.
+4. **Gelişmiş** kısmında hedef megapiksel (0 = girdiyle aynı), çözünürlük katı (32/56/112),
+   decoder VAE (`qwen`/`wan2x`), padding, VAE tiling ve parlaklık koruması ayarları bulunur.
+5. **▶ DÜZENLE**. Upload → `/infer` → PNG indirme zinciri çalışır (20–90 sn).
+6. Sonuç `outputs\qwen2511_<tarih>.png` olarak kaydedilir.
+
+> HAR'da görülen `upload_progress` SSE'si, `on_lora_change_ui` (fn 0) ve çıktıyı geri
+> yükleyen fn 2/3/4 ile `add_derived_ref` (fn 5) istekleri UI içindir, atlanır.
+
 ## Kullanım — Metinden ses (Kokoro TTS)
 
 1. Metin yaz (~500 karakter sınırı; Generate modu).
@@ -245,7 +262,7 @@ DB içeriğini görmek için: `python scripts/db_bilgi.py` · testler: `python s
 
 ```
 hugginface/
-├─ apps/          tkinter arayüzleri (launcher + 14 space)
+├─ apps/          tkinter arayüzleri (launcher + 15 space)
 ├─ clients/       HF API istemcileri (ortak transport/proxy katmanı hf_image_client'da)
 ├─ core/          altyapı: proxy_db.py, local_api.py (yerel HTTP API)
 ├─ config/        spaces.json + settings*.json (otomatik, git'e girmez)
@@ -263,9 +280,9 @@ hugginface/
 | Klasör / dosya | Görev |
 |---|---|
 | `apps/launcher.py` | Açılışta space seçim ekranı (ızgara kartlar, tek tık) |
-| `apps/*_app.py` | On dört space'in tkinter arayüzü |
+| `apps/*_app.py` | On beş space'in tkinter arayüzü |
 | `clients/hf_image_client.py` | Ortak transport / ProxyPool / RotatingTransport + MiniMax H3 Image |
-| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, LTX-2.5, TRELLIS.2, Kokoro, Gemma, Wan 2.2, FLUX.3 istemcileri |
+| `clients/*_client.py` | LTX, MiniMax Video, Krea, Qwen, P-H3, Z-Image, LTX-Distilled, LTX-2.5, TRELLIS.2, Kokoro, Gemma, Wan 2.2, FLUX.3, Qwen 2511 istemcileri |
 | `core/proxy_db.py` | SQLite proxy kullanım deposu (`ProxyDB`, FIFO/LRU) |
 | `core/local_api.py` | Yerel FastAPI sunucusu — agent'lar için (bkz. `docs/AGENTS.md`) |
 | `config/spaces.json` | Space kayıtları (ad, host, modül, açıklama) |
@@ -590,6 +607,39 @@ Space: `black-forest-labs/flux-3-image-klein`
   fn 32 `/boxes_toggle`, fn 30 `/use_as_reference`, fn 25 `/sync_references`,
   fn 27/28 `/set_aspect`, fn 29 `/update_steps_from_mode` ve
   `POST /gradio_api/component_server` (`get_app_version`).
+- `x-zerogpu-*` / cookie / `Authorization` yalnızca HAR kaydında görünür; istemci **göndermez**.
+
+## Teknik özet — Qwen Image Edit 2511 (`huggingface.co.qwen.2511.edit.har`)
+
+Host: `https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space` · Gradio 6.28.0
+Space: `aet256/Qwen-Image-Edit-Rapid-AIO-Loras-Experimental`
+
+0. `POST /gradio_api/upload?upload_id=<id>` — multipart, alan `files`
+   → `["/tmp/gradio/<hash>/<ad>"]` (Image 1, opsiyonel Image 2 ve ek referanslar)
+1. `POST /gradio_api/queue/join?__theme=dark` — `fn_index: 1` (`/infer`),
+   `trigger_id: 11` (Edit Image butonu), 19 elemanlı `data` → `{"event_id": "..."}`:
+   `[image1, image2, extras, prompt, lora, seed, randomize_seed, guidance,
+   steps, target_megapixels, extras_condition_only, pad_to_canvas, vae_tiling,
+   resolution_multiple, vae_ref_megapixels, decoder_vae, keep_decoder_2x,
+   highlight_protection, highlight_protection_strength]`
+2. `GET /gradio_api/queue/data?session_hash=...` — SSE; `process_completed`
+   (`output.data = [Image(FileData), kullanilan_seed]`)
+3. `GET /gradio_api/file=/tmp/gradio/<hash>/image.png` → PNG
+
+**Parametre notları:**
+
+- HAR'da `/config`/`/info` isteği yoktu; şema HTML içindeki `window.gradio_config`
+  (`dependencies[1].inputs = [7,8,9,10,22,30,31,32,33,34,41,42,43,35,36,37,38,39,40]`)
+  ve canlı `/gradio_api/info` (`/infer`) ile doğrulandı. `outputs = [14,30,15]`.
+- HAR'daki gerçek dizi: `[FileData, null, [], "smile", "None", 0, true, 1, 4, 1,
+  true, true, false, 32, 0, "qwen", false, true, 0.35]`.
+- 19 stil/LoRA seçeneği (`None`, `Consistance`, `AnyPose`, `BFS-Best-FaceSwap`, `Relight`,
+  `Upscale2K`, …); decoder `qwen` / `wan2x`; çözünürlük katı 32/56/112.
+- Guidance 1–10 (vars. 1), steps 1–50 (vars. 4), hedef MP 0–6 (vars. 1.0),
+  ref VAE MP 0–6 (vars. 0), highlight strength 0–1 (vars. 0.35).
+- Ek referans galerisi öğe biçimi `{"image": FileData, "caption": null}`.
+- Atlanan UI-only çağrılar: fn 0 `/on_lora_change_ui`, fn 2/3/4 (çıktıyı Image 1/2/Extra
+  olarak geri yükleme), fn 5 `/add_derived_ref` ve `upload_progress` SSE'si.
 - `x-zerogpu-*` / cookie / `Authorization` yalnızca HAR kaydında görünür; istemci **göndermez**.
 
 ## Teknik özet — Kokoro TTS (`huggingface.co.kokoro.tts.fast.har`)

@@ -125,6 +125,15 @@
       "host": "black-forest-labs-flux-3-image-klein.hf.space",
       "modul": "apps.flux3_app",
       "aciklama": "Metinden veya en fazla 10 referans görselle görsel üretir (/generate). Distilled/Base model, oran, çözünürlük, genişlik/yükseklik, steps, guidance, seed ve prompt upsampling ayarları."
+    },
+    {
+      "id": "qwen-image-edit-2511",
+      "ad": "Qwen Image Edit 2511 · Görsel düzenleme",
+      "tur": "Görsel düzenleme",
+      "space": "aet256/Qwen-Image-Edit-Rapid-AIO-Loras-Experimental",
+      "host": "aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space",
+      "modul": "apps.qwen2511_app",
+      "aciklama": "Referanslı görsel düzenleme (/infer). Image 1 + opsiyonel Image 2 ve ek referanslar, 19 LoRA stili, seed, guidance, steps, hedef MP, VAE ayarları ve parlaklık koruması."
     }
   ]
 }

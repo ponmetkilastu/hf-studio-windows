@@ -34,6 +34,7 @@ settings_ltx25.json
 settings_trellis2.json
 settings_wan22.json
 settings_flux3.json
+settings_qwen2511.json
 
 # -- Python --
 __pycache__/

@@ -36,6 +36,7 @@ Tek endpoint'e istek atarsın, karşılığında dosya (PNG / JPEG / MP4) alırs
 | `POST /gemma/chat` | Sohbet (Gemma 4 31B) | `message` | JSON (`content`) |
 | `POST /wan22/i2v` | Fotoğraftan video (Wan 2.2 Fast, 14B + Lightning LoRA) | `image` | MP4 |
 | `POST /flux3/text2image` | Metinden / referanslı görsel (FLUX.3 Image Klein) | `prompt` | PNG |
+| `POST /qwen2511/edit` | Referanslı görsel düzenleme (Qwen Image Edit 2511) | `image`, `prompt` | PNG |
 
 ---
 
@@ -86,6 +87,14 @@ FLUX.3 Image Klein (`/flux3/text2image`) alanları: `prompt` (zorunlu), `image` 
 (`Distilled (16 steps)` / `Base (50 steps)`), `width`/`height` (256–4096, vars. 2048),
 `steps` (1–50, vars. 16), `guidance` (0–10, vars. 1.0), `seed` (vars. 0),
 `randomize` (vars. `true`), `upsampling` (vars. `true`).
+
+Qwen Image Edit 2511 (`/qwen2511/edit`) alanları: `image` + `prompt` (zorunlu),
+`image2` ve `ref1`…`ref8` (opsiyonel referanslar), `lora` (19 stil, vars. `None`),
+`seed` (vars. 0), `randomize` (vars. `true`), `guidance` (1–10, vars. 1),
+`steps` (1–50, vars. 4), `megapixels` (0–6, vars. 1.0), `resolution_multiple`
+(32/56/112), `ref_megapixels` (vars. 0.0), `decoder` (`qwen`/`wan2x`),
+`keep_2x`, `extras_condition_only`, `pad_to_canvas`, `vae_tiling`,
+`highlight_protection`, `highlight_strength` (vars. 0.35).
 
 ### Görselden 3D (TRELLIS.2)
 
@@ -186,6 +195,7 @@ curl -X POST http://127.0.0.1:8787/minimax-video/i2v \
 | Sohbet | `/gemma/chat` |
 | Fotoğraftan video (Wan 2.2 Fast) | `/wan22/i2v` |
 | Metinden / referanslı görsel (FLUX.3 Klein) | `/flux3/text2image` |
+| Referanslı görsel düzenleme (Qwen 2511) | `/qwen2511/edit` |
 
 Belirtilmezse varsayılan olarak `/ph3/text2image` kullan.
 

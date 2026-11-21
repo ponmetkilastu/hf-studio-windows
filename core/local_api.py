@@ -42,6 +42,7 @@ import clients.kokoro_client as kokoro_mod
 import clients.gemma31b_client as gemma_mod
 import clients.wan22_client as wan22_mod
 import clients.flux3_client as flux3_mod
+import clients.qwen2511_client as qwen2511_mod
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -115,6 +116,7 @@ def root():
             "/minimax-image/text2image", "/zimage/text2image",
             "/ltx09/i2v", "/ltx25/i2v", "/trellis2/image3d",
             "/kokoro/tts", "/gemma/chat", "/wan22/i2v", "/flux3/text2image",
+            "/qwen2511/edit",
         ],
     }
 
@@ -548,6 +550,55 @@ async def flux3_text2image(
             seed=seed, randomize_seed=randomize, prompt_upsampling=upsampling,
         )
         return _binary(r.image_bytes, "image/png", "flux3.png")
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+    finally:
+        _cleanup(tmp)
+
+
+@app.post("/qwen2511/edit")
+async def qwen2511_edit(
+    image: UploadFile = File(...),
+    image2: Optional[UploadFile] = File(None),
+    ref1: Optional[UploadFile] = File(None),
+    ref2: Optional[UploadFile] = File(None),
+    ref3: Optional[UploadFile] = File(None),
+    ref4: Optional[UploadFile] = File(None),
+    ref5: Optional[UploadFile] = File(None),
+    ref6: Optional[UploadFile] = File(None),
+    ref7: Optional[UploadFile] = File(None),
+    ref8: Optional[UploadFile] = File(None),
+    prompt: str = Form(...),
+    lora: str = Form("None"),
+    seed: int = Form(0), randomize: bool = Form(True),
+    guidance: float = Form(1.0), steps: int = Form(4),
+    megapixels: float = Form(1.0), resolution_multiple: int = Form(32),
+    ref_megapixels: float = Form(0.0), decoder: str = Form("qwen"),
+    keep_2x: bool = Form(False), extras_condition_only: bool = Form(True),
+    pad_to_canvas: bool = Form(True), vae_tiling: bool = Form(False),
+    highlight_protection: bool = Form(True), highlight_strength: float = Form(0.35),
+):
+    tmp: list[str] = []
+    try:
+        main = _save_uploads([image])
+        second = _save_uploads([image2])
+        extra = _save_uploads([ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8])
+        tmp = main + second + extra
+        if not main:
+            return JSONResponse({"ok": False, "error": "image gerekli"}, status_code=400)
+        c = qwen2511_mod.Qwen2511Client(proxy_pool=POOL, on_log=_log)
+        r = c.generate(
+            main[0], prompt, image2_path=second[0] if second else None,
+            extra_paths=extra or None,
+            lora=lora, seed=seed, randomize_seed=randomize,
+            guidance_scale=guidance, steps=steps, target_megapixels=megapixels,
+            resolution_multiple=resolution_multiple, vae_ref_megapixels=ref_megapixels,
+            decoder_vae=decoder, keep_decoder_2x=keep_2x,
+            extras_condition_only=extras_condition_only, pad_to_canvas=pad_to_canvas,
+            vae_tiling=vae_tiling, highlight_protection=highlight_protection,
+            highlight_protection_strength=highlight_strength,
+        )
+        return _binary(r.image_bytes, "image/png", "qwen2511.png")
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
     finally:
